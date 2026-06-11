@@ -11,10 +11,7 @@ frontend/react-native/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-
-# Mac/VS Code
-.DS_Store
-.vscode/
+*.log
 
 # Build output
 build/
@@ -28,5 +25,11 @@ dist/
 android/
 ios/
 
+# Mac/VS Code
+.DS_Store
+.Thumbs.db
+.vscode/
+
 # Misc
 *.log
+

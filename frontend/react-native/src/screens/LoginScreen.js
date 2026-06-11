@@ -67,6 +67,7 @@ const LoginScreen = ({ navigation }) => {
               />
             </View>
             <Text style={styles.headerTitle}>KG-D6</Text>
+            <Text style={styles.headerSubtitle}>Reliance Industries</Text>
           </View>
 
           <View style={styles.formContainer}>
@@ -125,6 +126,12 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+  },
   header: {
     alignItems: 'center',
     marginBottom: 40,
@@ -152,12 +159,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginTop: 5,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingVertical: 24,
-    paddingHorizontal: 20,
   },
   formContainer: {
     backgroundColor: '#fff',
