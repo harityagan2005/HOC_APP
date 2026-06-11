@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Expo: Start React Native",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/frontend/react-native/node_modules/expo/bin/cli.js",
+      "args": ["start", "--port", "8083"],
+      "cwd": "${workspaceFolder}/frontend/react-native",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    }
+  ]
+}
