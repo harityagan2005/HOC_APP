@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "HOC Mobile",
+    "slug": "hoc-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "sdkVersion": "54.0.0",
+    "userInterfaceStyle": "light"
+  }
+}
