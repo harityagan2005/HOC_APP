@@ -16,7 +16,6 @@ import { getUserDashboard } from '../services/reportService';
 import { AuthContext } from '../../App';
 
 const { width, height } = Dimensions.get('window');
-
 const DashboardScreen = ({ navigation }) => {
   const { user, signOut } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
