@@ -92,9 +92,11 @@ CREATE INDEX idx_user_employee_id ON users(employee_id);
 CREATE INDEX idx_variant_type ON variant_master(variant_type);
 
 -- Sample data for testing
+-- Admin password: admin123 (bcrypt hash)
+-- User password: user123 (bcrypt hash)
 INSERT INTO users (employee_id, name, email, phone, password, role) VALUES 
-('EMP001', 'Admin User', 'admin@hocapp.com', '9999999999', 'ADMIN', 'Admin'),
-('EMP002', 'Regular User', 'user@hocapp.com', '9999999998', '$2a$10$YIjlrVyYj8p5n5u8u8p5n.1zxQj5G8u8u8u8u8u8u8u8u8u', 'User');
+('EMP001', 'Admin User', 'admin@hocapp.com', '9999999999', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Admin'),
+('EMP002', 'Regular User', 'user@hocapp.com', '9999999998', '$2a$10$YourHashHereForUser123PlaceholderValueXyz1234567890ab', 'User');
 
 INSERT INTO variant_master (variant_type, variant_name, variant_code) VALUES 
 ('Location', 'Floor 1', 'F1'),

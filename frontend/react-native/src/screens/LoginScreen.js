@@ -32,15 +32,16 @@ const LoginScreen = ({ navigation }) => {
 
     setLoading(true);
     try {
-      const response = await login(employeeId, password);
+      const response = await login(employeeId.trim(), password);
       if (response.success && response.data) {
         await signIn(response.data.token, response.data.user);
-        Alert.alert('Success', 'Logged in successfully!');
       } else {
         Alert.alert('Error', response.message || 'Login failed');
       }
     } catch (error) {
-      Alert.alert('Error', error.message || 'Login failed');
+      console.log('Login error:', error);
+      const msg = error?.message || (typeof error === 'string' ? error : 'Login failed. Check network connection.');
+      Alert.alert('Login Failed', msg);
     } finally {
       setLoading(false);
     }

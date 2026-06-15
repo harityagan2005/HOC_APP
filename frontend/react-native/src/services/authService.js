@@ -20,7 +20,8 @@ export const login = async (employee_id, password) => {
     });
     return response.data;
   } catch (error) {
-    throw error.response?.data || error.message;
+    const msg = error.response?.data?.message || error.message || 'Login failed';
+    throw new Error(msg);
   }
 };
 

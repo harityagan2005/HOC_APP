@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "android": "expo start --android --port 8083",
-    "ios": "expo start --ios --port 8083",
-    "start": "expo start --port 8083"
+    "android": "expo start --android --port 8083 --tunnel",
+    "ios": "expo start --ios --port 8083 --tunnel",
+    "start": "expo start --port 8083 --tunnel"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
