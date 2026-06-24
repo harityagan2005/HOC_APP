@@ -33,6 +33,8 @@ const wp = (pct) => (W * pct) / 100;
 /** Height percentage */
 const hp = (pct) => (H * pct) / 100;
 
+const STATUSBAR_H = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) : 0;
+
 // ─── Theme ──────────────────────────────────────────────────────────
 const BLUE_DARK   = '#0D2B6E';
 const BLUE_ACCENT = '#2563EB';
@@ -221,7 +223,7 @@ const DashboardScreen = ({ navigation }) => {
   // ─── Render ──────────────────────────────────────────────────────
   return (
     <View style={s.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={BG} />
+      <StatusBar barStyle="dark-content" backgroundColor={CARD_BG} translucent={false} />
 
       {/* App Bar */}
       <View style={s.appBar}>
@@ -511,8 +513,8 @@ const s = StyleSheet.create({
 
   // App Bar
   appBar: {
-    height: Platform.OS === 'ios' ? hp(11.5) : hp(7.2),
-    paddingTop: Platform.OS === 'ios' ? hp(5.5) : 0,
+    height: Platform.OS === 'ios' ? hp(11.5) : hp(7.2) + STATUSBAR_H,
+    paddingTop: Platform.OS === 'ios' ? hp(5.5) : STATUSBAR_H,
     backgroundColor: CARD_BG,
     flexDirection: 'row',
     alignItems: 'center',
@@ -657,7 +659,7 @@ const s = StyleSheet.create({
     width: W * 0.80,
     height: H,
     backgroundColor: CARD_BG,
-    paddingTop: Platform.OS === 'ios' ? hp(6.5) : hp(4),
+    paddingTop: Platform.OS === 'ios' ? hp(6.5) : STATUSBAR_H + hp(2),
     position: 'absolute', left: 0, top: 0,
     zIndex: 101,
     borderRightWidth: StyleSheet.hairlineWidth,

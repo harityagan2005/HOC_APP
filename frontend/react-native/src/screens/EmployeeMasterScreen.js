@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   StyleSheet, View, Text, TextInput, TouchableOpacity,
   ActivityIndicator, Alert, Modal, FlatList, ScrollView,
-  Dimensions, PixelRatio, Platform,
+  Dimensions, PixelRatio, Platform, StatusBar,
 } from 'react-native';
 import { getEmployees, addEmployee, updateEmployee, deleteEmployee } from '../services/employeeService';
 
@@ -12,6 +12,7 @@ const rs = (n) => Math.round((W / BASE_W) * n);
 const rf = (n) => PixelRatio.roundToNearestPixel((W / BASE_W) * n);
 const wp = (p) => (W * p) / 100;
 const hp = (p) => (H * p) / 100;
+const STATUSBAR_H = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) : 0;
 
 const EmployeeMasterScreen = ({ navigation }) => {
   const [loading, setLoading]               = useState(true);
@@ -243,8 +244,8 @@ const s = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   header: {
-    height: Platform.OS === 'ios' ? hp(11) : hp(7.2),
-    paddingTop: Platform.OS === 'ios' ? hp(5) : 0,
+    height: Platform.OS === 'ios' ? hp(11) : hp(7.2) + STATUSBAR_H,
+    paddingTop: Platform.OS === 'ios' ? hp(5) : STATUSBAR_H,
     backgroundColor: '#0D2B6E',
     flexDirection: 'row',
     alignItems: 'center',

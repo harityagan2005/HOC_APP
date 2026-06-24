@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import {
   StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView,
   ActivityIndicator, Alert, Modal, FlatList, KeyboardAvoidingView, Platform,
-  Dimensions, PixelRatio,
+  Dimensions, PixelRatio, StatusBar,
 } from 'react-native';
 import { createReport } from '../services/reportService';
 import { getVariants } from '../services/variantService';
@@ -14,6 +14,7 @@ const rs = (n) => Math.round((W / BASE_W) * n);
 const rf = (n) => PixelRatio.roundToNearestPixel((W / BASE_W) * n);
 const wp = (p) => (W * p) / 100;
 const hp = (p) => (H * p) / 100;
+const STATUSBAR_H = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) : 0;
 
 const ReportCreationScreen = ({ navigation }) => {
   const { user } = useContext(AuthContext);
@@ -326,8 +327,8 @@ const s = StyleSheet.create({
   loadingText: { marginTop: hp(1.2), fontSize: rf(13.5), color: '#64748B' },
 
   header: {
-    height: Platform.OS === 'ios' ? hp(11) : hp(7.2),
-    paddingTop: Platform.OS === 'ios' ? hp(5) : 0,
+    height: Platform.OS === 'ios' ? hp(11) : hp(7.2) + STATUSBAR_H,
+    paddingTop: Platform.OS === 'ios' ? hp(5) : STATUSBAR_H,
     backgroundColor: '#0D2B6E',
     flexDirection: 'row',
     alignItems: 'center',
