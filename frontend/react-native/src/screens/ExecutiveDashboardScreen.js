@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   StyleSheet, View, Text, ScrollView, TouchableOpacity,
   ActivityIndicator, Alert, RefreshControl, Dimensions, PixelRatio, Platform, StatusBar,
-} from 'react-native';
+} from 'react-native'; 
 import { getAdminDashboard } from '../services/reportService';
 
 const { width: W, height: H } = Dimensions.get('window');

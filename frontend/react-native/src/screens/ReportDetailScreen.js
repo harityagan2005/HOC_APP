@@ -4,6 +4,7 @@ import {
   ActivityIndicator, Alert, Dimensions, PixelRatio, Platform, StatusBar,
 } from 'react-native';
 import { getReportDetail, deleteReport, updateReport } from '../services/reportService';
+import { getVariants } from '../services/variantService';
 import { AuthContext } from '../../App';
 
 const { width: W, height: H } = Dimensions.get('window');
@@ -42,6 +43,7 @@ const ReportDetailScreen = ({ navigation, route }) => {
   const [loading, setLoading]     = useState(true);
   const [deleting, setDeleting]   = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [statusVariants, setStatusVariants] = useState([]);
 
   const fetchReport = async () => {
     setLoading(true);
@@ -56,7 +58,14 @@ const ReportDetailScreen = ({ navigation, route }) => {
     }
   };
 
-  useEffect(() => { fetchReport(); }, [reportId]);
+  useEffect(() => {
+    fetchReport();
+    getVariants().then(res => {
+      if (res.success && res.data) {
+        setStatusVariants(res.data.filter(v => v.variant_type.toLowerCase() === 'status'));
+      }
+    }).catch(() => {});
+  }, [reportId]);
 
   const handleDelete = () => {
     Alert.alert('Delete Report', `Permanently delete report #${reportId}?`, [
@@ -86,6 +95,11 @@ const ReportDetailScreen = ({ navigation, route }) => {
 
   const handleStatusUpdate = (newStatus) => {
     if (!report) return;
+    const variant = statusVariants.find(v => v.variant_name.toLowerCase() === newStatus.toLowerCase());
+    if (!variant) {
+      Alert.alert('Error', `Status "${newStatus}" not found. Please sync variants first.`);
+      return;
+    }
     Alert.alert('Update Status', `Change status to "${newStatus}"?`, [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -93,12 +107,13 @@ const ReportDetailScreen = ({ navigation, route }) => {
         onPress: async () => {
           setUpdatingStatus(true);
           try {
-            const res = await updateReport(reportId, { status_id: report.status_id });
-            // Note: status update via status_id. In practice, find the matching variant.
-            // Here we use variant name to find the right status_id is complex.
-            // Instead update the display and inform via Alert.
-            setReport(prev => ({ ...prev, status_name: newStatus }));
-            Alert.alert('Updated', `Status updated to ${newStatus}`);
+            const res = await updateReport(reportId, { status_id: variant.id });
+            if (res.success) {
+              setReport(prev => ({ ...prev, status_name: newStatus, status_id: variant.id }));
+              Alert.alert('Updated', `Status changed to "${newStatus}"`);
+            } else {
+              Alert.alert('Error', res.message || 'Update failed');
+            }
           } catch (e) {
             Alert.alert('Error', e?.message || 'Update failed');
           } finally {

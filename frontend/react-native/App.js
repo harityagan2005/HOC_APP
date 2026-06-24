@@ -71,8 +71,6 @@ export default function App() {
     );
   }
 
-  const isAdmin = user?.role === 'Admin' || user?.role === 'admin';
-
   return (
     <AuthContext.Provider value={authContextValue}>
       <NavigationContainer>
@@ -84,17 +82,13 @@ export default function App() {
             </>
           ) : (
             <>
-              <Stack.Screen name="Dashboard"            component={DashboardScreen} />
-              <Stack.Screen name="ReportCreation"       component={ReportCreationScreen} />
-              <Stack.Screen name="ReportsList"          component={ReportsListScreen} />
-              <Stack.Screen name="ReportDetail"         component={ReportDetailScreen} />
-              {isAdmin && (
-                <>
-                  <Stack.Screen name="ExecutiveDashboard" component={ExecutiveDashboardScreen} />
-                  <Stack.Screen name="VariantMaster"      component={VariantMasterScreen} />
-                  <Stack.Screen name="EmployeeMaster"     component={EmployeeMasterScreen} />
-                </>
-              )}
+              <Stack.Screen name="Dashboard"          component={DashboardScreen} />
+              <Stack.Screen name="ReportCreation"     component={ReportCreationScreen} />
+              <Stack.Screen name="ReportsList"        component={ReportsListScreen} />
+              <Stack.Screen name="ReportDetail"       component={ReportDetailScreen} />
+              <Stack.Screen name="ExecutiveDashboard" component={ExecutiveDashboardScreen} />
+              <Stack.Screen name="VariantMaster"      component={VariantMasterScreen} />
+              <Stack.Screen name="EmployeeMaster"     component={EmployeeMasterScreen} />
             </>
           )}
         </Stack.Navigator>
