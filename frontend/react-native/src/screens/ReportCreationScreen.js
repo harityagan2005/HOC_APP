@@ -1,99 +1,77 @@
 import React, { useState, useEffect, useContext } from 'react';
 import {
-  StyleSheet,
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-  Alert,
-  Modal,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
+  StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView,
+  ActivityIndicator, Alert, Modal, FlatList, KeyboardAvoidingView, Platform,
+  Dimensions, PixelRatio,
 } from 'react-native';
 import { createReport } from '../services/reportService';
 import { getVariants } from '../services/variantService';
 import { AuthContext } from '../../App';
 
+const { width: W, height: H } = Dimensions.get('window');
+const BASE_W = 375;
+const rs = (n) => Math.round((W / BASE_W) * n);
+const rf = (n) => PixelRatio.roundToNearestPixel((W / BASE_W) * n);
+const wp = (p) => (W * p) / 100;
+const hp = (p) => (H * p) / 100;
+
 const ReportCreationScreen = ({ navigation }) => {
   const { user } = useContext(AuthContext);
 
-  // Loading states
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]               = useState(false);
   const [loadingVariants, setLoadingVariants] = useState(true);
+  const [locations, setLocations]           = useState([]);
+  const [areas, setAreas]                   = useState([]);
+  const [statuses, setStatuses]             = useState([]);
+  const [categories, setCategories]         = useState([]);
+  const [departments, setDepartments]       = useState([]);
 
-  // Variant lists
-  const [variants, setVariants] = useState([]);
-  const [locations, setLocations] = useState([]);
-  const [areas, setAreas] = useState([]);
-  const [statuses, setStatuses] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [departments, setDepartments] = useState([]);
-
-  // Form Fields
-  const [jobReqFor, setJobReqFor] = useState('');
-  const [company, setCompany] = useState('');
-  const [observerName, setObserverName] = useState(user?.name || '');
+  const [jobReqFor, setJobReqFor]           = useState('');
+  const [company, setCompany]               = useState('');
+  const [observerName, setObserverName]     = useState(user?.name || '');
   const [observationDate, setObservationDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedLocation, setSelectedLocation] = useState(null);
-  const [selectedArea, setSelectedArea] = useState(null);
-  const [selectedStatus, setSelectedStatus] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedLocation, setSelectedLocation]   = useState(null);
+  const [selectedArea, setSelectedArea]           = useState(null);
+  const [selectedStatus, setSelectedStatus]       = useState(null);
+  const [selectedCategory, setSelectedCategory]   = useState(null);
   const [selectedDepartment, setSelectedDepartment] = useState(null);
-  const [operAct, setOperAct] = useState('');
-  const [observations, setObservations] = useState('');
+  const [operAct, setOperAct]               = useState('');
+  const [observations, setObservations]     = useState('');
   const [correctiveActions, setCorrectiveActions] = useState('');
   const [accountablePerson, setAccountablePerson] = useState('');
   const [responsiblePerson, setResponsiblePerson] = useState('');
-  const [hod, setHod] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
-  const [stopJob, setStopJob] = useState('No');
-  const [endDate, setEndDate] = useState('');
-  const [remarks, setRemarks] = useState('');
-  const [severity, setSeverity] = useState('Low');
-  const [fyYear, setFyYear] = useState('');
+  const [hod, setHod]                       = useState('');
+  const [imageUrl, setImageUrl]             = useState('');
+  const [stopJob, setStopJob]               = useState('No');
+  const [endDate, setEndDate]               = useState('');
+  const [remarks, setRemarks]               = useState('');
+  const [severity, setSeverity]             = useState('Low');
+  const [fyYear, setFyYear]                 = useState('');
 
-  // Custom Selector Modals State
-  const [modalVisible, setModalVisible] = useState(false);
-  const [modalType, setModalType] = useState(''); // 'location', 'area', 'status', 'category', 'department'
-  const [modalData, setModalData] = useState([]);
+  const [modalVisible, setModalVisible]     = useState(false);
+  const [modalType, setModalType]           = useState('');
+  const [modalData, setModalData]           = useState([]);
 
-  // Fetch Variants
   const fetchAllVariants = async () => {
     setLoadingVariants(true);
     try {
       const response = await getVariants();
       if (response.success && response.data) {
         const data = response.data;
-        setVariants(data);
-
-        // Filter variants by type
-        const locList = data.filter((v) => v.variant_type.toLowerCase() === 'location');
+        const locList  = data.filter((v) => v.variant_type.toLowerCase() === 'location');
         const areaList = data.filter((v) => v.variant_type.toLowerCase() === 'area');
         const statList = data.filter((v) => v.variant_type.toLowerCase() === 'status');
-        const catList = data.filter((v) => v.variant_type.toLowerCase() === 'category');
-        const deptList = data.filter(
-          (v) =>
-            v.variant_type.toLowerCase() === 'department' ||
-            v.variant_type.toLowerCase() === 'action department'
+        const catList  = data.filter((v) => v.variant_type.toLowerCase() === 'category');
+        const deptList = data.filter((v) =>
+          v.variant_type.toLowerCase() === 'department' ||
+          v.variant_type.toLowerCase() === 'action department'
         );
-
-        setLocations(locList);
-        setAreas(areaList);
-        setStatuses(statList);
-        setCategories(catList);
-        setDepartments(deptList);
-
-        // Pre-fill default status 'Open' if exists
+        setLocations(locList); setAreas(areaList); setStatuses(statList);
+        setCategories(catList); setDepartments(deptList);
         const openStatus = statList.find((s) => s.variant_name.toLowerCase() === 'open');
-        if (openStatus) {
-          setSelectedStatus(openStatus);
-        }
+        if (openStatus) setSelectedStatus(openStatus);
       }
     } catch (error) {
-      console.error(error);
       Alert.alert('Error', 'Failed to fetch variants for dropdown lists');
     } finally {
       setLoadingVariants(false);
@@ -102,94 +80,46 @@ const ReportCreationScreen = ({ navigation }) => {
 
   useEffect(() => {
     fetchAllVariants();
-    
-    // Set default financial year (e.g. 2026-27)
-    const currentYear = new Date().getFullYear();
-    const nextYearSuffix = (currentYear + 1).toString().slice(-2);
-    setFyYear(`${currentYear}-${nextYearSuffix}`);
+    const y = new Date().getFullYear();
+    setFyYear(`${y}-${(y + 1).toString().slice(-2)}`);
   }, []);
 
   const openSelectorModal = (type) => {
     setModalType(type);
-    switch (type) {
-      case 'location':
-        setModalData(locations);
-        break;
-      case 'area':
-        setModalData(areas);
-        break;
-      case 'status':
-        setModalData(statuses);
-        break;
-      case 'category':
-        setModalData(categories);
-        break;
-      case 'department':
-        setModalData(departments);
-        break;
-      default:
-        setModalData([]);
-    }
+    const map = { location: locations, area: areas, status: statuses, category: categories, department: departments };
+    setModalData(map[type] || []);
     setModalVisible(true);
   };
 
   const handleSelectItem = (item) => {
-    switch (modalType) {
-      case 'location':
-        setSelectedLocation(item);
-        break;
-      case 'area':
-        setSelectedArea(item);
-        break;
-      case 'status':
-        setSelectedStatus(item);
-        break;
-      case 'category':
-        setSelectedCategory(item);
-        break;
-      case 'department':
-        setSelectedDepartment(item);
-        break;
-    }
+    const setters = {
+      location: setSelectedLocation, area: setSelectedArea, status: setSelectedStatus,
+      category: setSelectedCategory, department: setSelectedDepartment,
+    };
+    setters[modalType]?.(item);
     setModalVisible(false);
   };
 
   const handleSubmit = async () => {
-    // Validate inputs
-    if (!jobReqFor.trim()) return Alert.alert('Validation Error', 'Job requirement field is required');
+    if (!jobReqFor.trim())   return Alert.alert('Validation Error', 'Job requirement field is required');
     if (!observerName.trim()) return Alert.alert('Validation Error', 'Observer name is required');
-    if (!selectedLocation) return Alert.alert('Validation Error', 'Location is required');
-    if (!selectedArea) return Alert.alert('Validation Error', 'Area is required');
-    if (!selectedStatus) return Alert.alert('Validation Error', 'Status is required');
-    if (!selectedCategory) return Alert.alert('Validation Error', 'Category is required');
+    if (!selectedLocation)    return Alert.alert('Validation Error', 'Location is required');
+    if (!selectedArea)        return Alert.alert('Validation Error', 'Area is required');
+    if (!selectedStatus)      return Alert.alert('Validation Error', 'Status is required');
+    if (!selectedCategory)    return Alert.alert('Validation Error', 'Category is required');
     if (!observations.trim()) return Alert.alert('Validation Error', 'Observations description is required');
 
     setLoading(true);
-
     const reportData = {
-      job_req_for: jobReqFor,
-      company: company || null,
-      observer_name: observerName,
-      observation_date: observationDate,
-      location_id: selectedLocation.id,
-      area_id: selectedArea.id,
-      status_id: selectedStatus.id,
-      category_id: selectedCategory.id,
-      action_department_id: selectedDepartment ? selectedDepartment.id : null,
-      oper_act: operAct || null,
-      observations: observations,
-      corrective_actions: correctiveActions || null,
-      accountable_person: accountablePerson || null,
-      responsible_person: responsiblePerson || null,
-      hod: hod || null,
-      image_url: imageUrl || null,
-      stop_job: stopJob,
-      end_date: endDate || null,
-      remarks: remarks || null,
-      severity: severity,
-      fy_year: fyYear || null,
+      job_req_for: jobReqFor, company: company || null, observer_name: observerName,
+      observation_date: observationDate, location_id: selectedLocation.id,
+      area_id: selectedArea.id, status_id: selectedStatus.id, category_id: selectedCategory.id,
+      action_department_id: selectedDepartment?.id || null, oper_act: operAct || null,
+      observations, corrective_actions: correctiveActions || null,
+      accountable_person: accountablePerson || null, responsible_person: responsiblePerson || null,
+      hod: hod || null, image_url: imageUrl || null, stop_job: stopJob,
+      end_date: endDate || null, remarks: remarks || null, severity, fy_year: fyYear || null,
     };
-
     try {
       const response = await createReport(reportData);
       if (response.success) {
@@ -200,322 +130,171 @@ const ReportCreationScreen = ({ navigation }) => {
         Alert.alert('Error', response.message || 'Failed to submit report');
       }
     } catch (error) {
-      console.error(error);
       Alert.alert('Error', error.message || 'Error occurred during submission');
     } finally {
       setLoading(false);
     }
   };
 
+  const Selector = ({ label, value, placeholder, type }) => (
+    <>
+      <Text style={s.label}>{label}</Text>
+      <TouchableOpacity style={s.selectorBtn} onPress={() => openSelectorModal(type)}>
+        <Text style={[s.selectorTxt, !value && s.selectorPlaceholder]}>
+          {value ? value.variant_name : placeholder}
+        </Text>
+        <Text style={s.selectorArrow}>▼</Text>
+      </TouchableOpacity>
+    </>
+  );
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1, backgroundColor: '#f9f9f9' }}
+      style={s.root}
     >
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backIcon}>←</Text>
+      <View style={s.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={s.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>New Hazard Report</Text>
-        <View style={{ width: 40 }} />
+        <Text style={s.headerTitle}>New Hazard Report</Text>
+        <View style={{ width: wp(10.7) }} />
       </View>
 
       {loadingVariants ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#D32F2F" />
-          <Text style={styles.loadingText}>Fetching variants list...</Text>
+        <View style={s.center}>
+          <ActivityIndicator size="large" color="#0D2B6E" />
+          <Text style={s.loadingText}>Fetching variants list…</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Basic Observation Details</Text>
+        <ScrollView contentContainerStyle={s.scrollContent}>
+          {/* Card 1: Basic Details */}
+          <View style={s.card}>
+            <Text style={s.cardTitle}>Basic Observation Details</Text>
 
-            <Text style={styles.label}>Job Requirement For *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Scaffolding, Hot Work, Excavation"
-              placeholderTextColor="#999"
-              value={jobReqFor}
-              onChangeText={setJobReqFor}
-            />
+            <Text style={s.label}>Job Requirement For *</Text>
+            <TextInput style={s.input} placeholder="e.g. Scaffolding, Hot Work, Excavation" placeholderTextColor="#9CA3AF" value={jobReqFor} onChangeText={setJobReqFor} />
 
-            <Text style={styles.label}>Company / Contractor Name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Reliance, Contractors Ltd."
-              placeholderTextColor="#999"
-              value={company}
-              onChangeText={setCompany}
-            />
+            <Text style={s.label}>Company / Contractor Name</Text>
+            <TextInput style={s.input} placeholder="e.g. Reliance, Contractors Ltd." placeholderTextColor="#9CA3AF" value={company} onChangeText={setCompany} />
 
-            <Text style={styles.label}>Observer Name *</Text>
-            <TextInput
-              style={styles.input}
-              value={observerName}
-              onChangeText={setObserverName}
-            />
+            <Text style={s.label}>Observer Name *</Text>
+            <TextInput style={s.input} value={observerName} onChangeText={setObserverName} />
 
-            <Text style={styles.label}>Observation Date (YYYY-MM-DD) *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. 2026-06-10"
-              placeholderTextColor="#999"
-              value={observationDate}
-              onChangeText={setObservationDate}
-            />
+            <Text style={s.label}>Observation Date (YYYY-MM-DD) *</Text>
+            <TextInput style={s.input} placeholder="e.g. 2026-06-10" placeholderTextColor="#9CA3AF" value={observationDate} onChangeText={setObservationDate} />
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Categorization & Location</Text>
-
-            {/* Location Selector */}
-            <Text style={styles.label}>Location *</Text>
-            <TouchableOpacity
-              style={styles.selectorButton}
-              onPress={() => openSelectorModal('location')}
-            >
-              <Text style={selectedLocation ? styles.selectorText : styles.placeholderSelectorText}>
-                {selectedLocation ? selectedLocation.variant_name : 'Select Location'}
-              </Text>
-              <Text style={styles.selectorArrow}>▼</Text>
-            </TouchableOpacity>
-
-            {/* Area Selector */}
-            <Text style={styles.label}>Area *</Text>
-            <TouchableOpacity
-              style={styles.selectorButton}
-              onPress={() => openSelectorModal('area')}
-            >
-              <Text style={selectedArea ? styles.selectorText : styles.placeholderSelectorText}>
-                {selectedArea ? selectedArea.variant_name : 'Select Area'}
-              </Text>
-              <Text style={styles.selectorArrow}>▼</Text>
-            </TouchableOpacity>
-
-            {/* Category Selector */}
-            <Text style={styles.label}>Hazard Category *</Text>
-            <TouchableOpacity
-              style={styles.selectorButton}
-              onPress={() => openSelectorModal('category')}
-            >
-              <Text style={selectedCategory ? styles.selectorText : styles.placeholderSelectorText}>
-                {selectedCategory ? selectedCategory.variant_name : 'Select Hazard Category'}
-              </Text>
-              <Text style={styles.selectorArrow}>▼</Text>
-            </TouchableOpacity>
-
-            {/* Status Selector */}
-            <Text style={styles.label}>Status *</Text>
-            <TouchableOpacity
-              style={styles.selectorButton}
-              onPress={() => openSelectorModal('status')}
-            >
-              <Text style={selectedStatus ? styles.selectorText : styles.placeholderSelectorText}>
-                {selectedStatus ? selectedStatus.variant_name : 'Select Status'}
-              </Text>
-              <Text style={styles.selectorArrow}>▼</Text>
-            </TouchableOpacity>
-
-            {/* Action Department Selector */}
-            <Text style={styles.label}>Action Department</Text>
-            <TouchableOpacity
-              style={styles.selectorButton}
-              onPress={() => openSelectorModal('department')}
-            >
-              <Text style={selectedDepartment ? styles.selectorText : styles.placeholderSelectorText}>
-                {selectedDepartment ? selectedDepartment.variant_name : 'Select Department (Optional)'}
-              </Text>
-              <Text style={styles.selectorArrow}>▼</Text>
-            </TouchableOpacity>
+          {/* Card 2: Categorization */}
+          <View style={s.card}>
+            <Text style={s.cardTitle}>Categorization {'&'} Location</Text>
+            <Selector label="Location *" value={selectedLocation} placeholder="Select Location" type="location" />
+            <Selector label="Area *" value={selectedArea} placeholder="Select Area" type="area" />
+            <Selector label="Hazard Category *" value={selectedCategory} placeholder="Select Hazard Category" type="category" />
+            <Selector label="Status *" value={selectedStatus} placeholder="Select Status" type="status" />
+            <Selector label="Action Department" value={selectedDepartment} placeholder="Select Department (Optional)" type="department" />
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Observation Findings</Text>
+          {/* Card 3: Findings */}
+          <View style={s.card}>
+            <Text style={s.cardTitle}>Observation Findings</Text>
 
-            <Text style={styles.label}>Severity Level *</Text>
-            <View style={styles.buttonGroup}>
-              {['Low', 'Medium', 'High', 'Critical'].map((level) => (
+            <Text style={s.label}>Severity Level *</Text>
+            <View style={s.btnGroup}>
+              {['Low', 'Medium', 'High', 'Critical'].map((level) => {
+                const activeColor = { Critical: '#DC2626', High: '#EA580C', Medium: '#D97706', Low: '#0D9488' }[level];
+                return (
+                  <TouchableOpacity
+                    key={level}
+                    style={[s.groupBtn, severity === level && { backgroundColor: activeColor, borderColor: 'transparent' }]}
+                    onPress={() => setSeverity(level)}
+                  >
+                    <Text style={[s.groupBtnText, severity === level && { color: '#fff' }]}>{level}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={s.label}>Stop Job Triggered? *</Text>
+            <View style={s.btnGroup}>
+              {['Yes', 'No'].map((opt) => (
                 <TouchableOpacity
-                  key={level}
-                  style={[
-                    styles.groupButton,
-                    severity === level && {
-                      backgroundColor:
-                        level === 'Critical'
-                          ? '#DC2626'
-                          : level === 'High'
-                          ? '#EA580C'
-                          : level === 'Medium'
-                          ? '#D97706'
-                          : '#0D9488',
-                      borderColor: 'transparent',
-                    },
-                  ]}
-                  onPress={() => setSeverity(level)}
+                  key={opt}
+                  style={[s.groupBtn, { flex: 0.48 }, stopJob === opt && { backgroundColor: opt === 'Yes' ? '#DC2626' : '#4B5563', borderColor: 'transparent' }]}
+                  onPress={() => setStopJob(opt)}
                 >
-                  <Text style={[styles.groupButtonText, severity === level && { color: '#fff' }]}>
-                    {level}
-                  </Text>
+                  <Text style={[s.groupBtnText, stopJob === opt && { color: '#fff' }]}>{opt}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={styles.label}>Stop Job Triggered? *</Text>
-            <View style={styles.buttonGroup}>
-              {['Yes', 'No'].map((option) => (
-                <TouchableOpacity
-                  key={option}
-                  style={[
-                    styles.groupButton,
-                    stopJob === option && {
-                      backgroundColor: option === 'Yes' ? '#DC2626' : '#4B5563',
-                      borderColor: 'transparent',
-                    },
-                    { flex: 0.48 },
-                  ]}
-                  onPress={() => setStopJob(option)}
-                >
-                  <Text style={[styles.groupButtonText, stopJob === option && { color: '#fff' }]}>
-                    {option}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Text style={s.label}>Operation / Activity being observed</Text>
+            <TextInput style={s.input} placeholder="What activity was being performed?" placeholderTextColor="#9CA3AF" value={operAct} onChangeText={setOperAct} />
 
-            <Text style={styles.label}>Operation / Activity being observed</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="What activity was being performed?"
-              placeholderTextColor="#999"
-              value={operAct}
-              onChangeText={setOperAct}
-            />
+            <Text style={s.label}>Observations / Description *</Text>
+            <TextInput style={[s.input, s.textArea]} placeholder="Describe what you observed. Highlight the safety hazard." placeholderTextColor="#9CA3AF" multiline numberOfLines={4} value={observations} onChangeText={setObservations} />
 
-            <Text style={styles.label}>Observations / Description *</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Describe what you observed. Highlight the safety hazard."
-              placeholderTextColor="#999"
-              multiline
-              numberOfLines={4}
-              value={observations}
-              onChangeText={setObservations}
-            />
-
-            <Text style={styles.label}>Immediate Corrective Actions Taken</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="What actions were taken immediately to mitigate the hazard?"
-              placeholderTextColor="#999"
-              multiline
-              numberOfLines={3}
-              value={correctiveActions}
-              onChangeText={setCorrectiveActions}
-            />
+            <Text style={s.label}>Immediate Corrective Actions Taken</Text>
+            <TextInput style={[s.input, s.textAreaSm]} placeholder="What actions were taken immediately to mitigate the hazard?" placeholderTextColor="#9CA3AF" multiline numberOfLines={3} value={correctiveActions} onChangeText={setCorrectiveActions} />
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Responsibility & Closure</Text>
+          {/* Card 4: Responsibility */}
+          <View style={s.card}>
+            <Text style={s.cardTitle}>Responsibility {'&'} Closure</Text>
 
-            <Text style={styles.label}>Accountable Person</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Name of accountable person"
-              placeholderTextColor="#999"
-              value={accountablePerson}
-              onChangeText={setAccountablePerson}
-            />
+            <Text style={s.label}>Accountable Person</Text>
+            <TextInput style={s.input} placeholder="Name of accountable person" placeholderTextColor="#9CA3AF" value={accountablePerson} onChangeText={setAccountablePerson} />
 
-            <Text style={styles.label}>Responsible Person</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Name of responsible person"
-              placeholderTextColor="#999"
-              value={responsiblePerson}
-              onChangeText={setResponsiblePerson}
-            />
+            <Text style={s.label}>Responsible Person</Text>
+            <TextInput style={s.input} placeholder="Name of responsible person" placeholderTextColor="#9CA3AF" value={responsiblePerson} onChangeText={setResponsiblePerson} />
 
-            <Text style={styles.label}>HOD (Head of Department)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Name of HOD"
-              placeholderTextColor="#999"
-              value={hod}
-              onChangeText={setHod}
-            />
+            <Text style={s.label}>HOD (Head of Department)</Text>
+            <TextInput style={s.input} placeholder="Name of HOD" placeholderTextColor="#9CA3AF" value={hod} onChangeText={setHod} />
 
-            <Text style={styles.label}>End Date (Closure Deadline) (YYYY-MM-DD)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. 2026-06-30"
-              placeholderTextColor="#999"
-              value={endDate}
-              onChangeText={setEndDate}
-            />
+            <Text style={s.label}>End Date (YYYY-MM-DD)</Text>
+            <TextInput style={s.input} placeholder="e.g. 2026-06-30" placeholderTextColor="#9CA3AF" value={endDate} onChangeText={setEndDate} />
 
-            <Text style={styles.label}>Financial Year</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. 2026-2027"
-              placeholderTextColor="#999"
-              value={fyYear}
-              onChangeText={setFyYear}
-            />
+            <Text style={s.label}>Financial Year</Text>
+            <TextInput style={s.input} placeholder="e.g. 2026-2027" placeholderTextColor="#9CA3AF" value={fyYear} onChangeText={setFyYear} />
 
-            <Text style={styles.label}>Image URL</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Link to observation photo"
-              placeholderTextColor="#999"
-              value={imageUrl}
-              onChangeText={setImageUrl}
-            />
+            <Text style={s.label}>Image URL</Text>
+            <TextInput style={s.input} placeholder="Link to observation photo" placeholderTextColor="#9CA3AF" value={imageUrl} onChangeText={setImageUrl} />
 
-            <Text style={styles.label}>Remarks / Extra Comments</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Any additional remarks..."
-              placeholderTextColor="#999"
-              multiline
-              numberOfLines={3}
-              value={remarks}
-              onChangeText={setRemarks}
-            />
+            <Text style={s.label}>Remarks / Extra Comments</Text>
+            <TextInput style={[s.input, s.textAreaSm]} placeholder="Any additional remarks..." placeholderTextColor="#9CA3AF" multiline numberOfLines={3} value={remarks} onChangeText={setRemarks} />
           </View>
 
           <TouchableOpacity
-            style={[styles.submitButton, loading && styles.disabledButton]}
+            style={[s.submitBtn, loading && s.submitBtnDisabled]}
             onPress={handleSubmit}
             disabled={loading}
+            activeOpacity={0.85}
           >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.submitButtonText}>Submit Report</Text>
-            )}
+            {loading
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={s.submitBtnText}>Submit Report</Text>
+            }
           </TouchableOpacity>
         </ScrollView>
       )}
 
-      {/* Dynamic Selector Modal */}
+      {/* Selector Modal */}
       <Modal visible={modalVisible} transparent animationType="slide">
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select {modalType.toUpperCase()}</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeModalButton}>
-                <Text style={styles.closeModalText}>✕</Text>
+        <View style={s.modalBackdrop}>
+          <View style={s.modalContent}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>Select {modalType.toUpperCase()}</Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={s.modalClose}>✕</Text>
               </TouchableOpacity>
             </View>
 
             {modalData.length === 0 ? (
-              <View style={styles.modalEmptyContainer}>
-                <Text style={styles.modalEmptyText}>No values found for {modalType}.</Text>
+              <View style={s.modalEmpty}>
+                <Text style={s.modalEmptyText}>No values found for {modalType}.</Text>
                 {(user?.role === 'Admin' || user?.role === 'admin') && (
-                  <Text style={styles.modalHelpText}>
-                    Please add values via the Variant Master screen.
-                  </Text>
+                  <Text style={s.modalHelpText}>Please add values via the Variant Master screen.</Text>
                 )}
               </View>
             ) : (
@@ -523,20 +302,15 @@ const ReportCreationScreen = ({ navigation }) => {
                 data={modalData}
                 keyExtractor={(item) => item.id.toString()}
                 renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={styles.modalItem}
-                    onPress={() => handleSelectItem(item)}
-                  >
+                  <TouchableOpacity style={s.modalItem} onPress={() => handleSelectItem(item)}>
                     <View>
-                      <Text style={styles.modalItemName}>{item.variant_name}</Text>
-                      {item.variant_code && (
-                        <Text style={styles.modalItemCode}>Code: {item.variant_code}</Text>
-                      )}
+                      <Text style={s.modalItemName}>{item.variant_name}</Text>
+                      {item.variant_code ? <Text style={s.modalItemCode}>Code: {item.variant_code}</Text> : null}
                     </View>
-                    <Text style={styles.selectArrowIcon}>→</Text>
+                    <Text style={s.modalArrow}>→</Text>
                   </TouchableOpacity>
                 )}
-                ItemSeparatorComponent={() => <View style={styles.modalItemSeparator} />}
+                ItemSeparatorComponent={() => <View style={s.sep} />}
               />
             )}
           </View>
@@ -546,219 +320,118 @@ const ReportCreationScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
+  root:   { flex: 1, backgroundColor: '#F0F4F8' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: wp(5.3) },
+  loadingText: { marginTop: hp(1.2), fontSize: rf(13.5), color: '#64748B' },
+
   header: {
-    height: 60,
-    backgroundColor: '#D32F2F',
+    height: Platform.OS === 'ios' ? hp(11) : hp(7.2),
+    paddingTop: Platform.OS === 'ios' ? hp(5) : 0,
+    backgroundColor: '#0D2B6E',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 10,
+    paddingHorizontal: wp(4.3),
     elevation: 4,
   },
-  backButton: {
-    padding: 10,
-  },
-  backIcon: {
-    fontSize: 24,
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 14,
-    color: '#666',
-  },
-  scrollContent: {
-    padding: 15,
-    paddingBottom: 40,
-  },
+  backBtn:     { padding: rs(6) },
+  backIcon:    { fontSize: rf(22), color: '#fff', fontWeight: '700' },
+  headerTitle: { fontSize: rf(17), fontWeight: '700', color: '#fff' },
+
+  scrollContent: { padding: wp(4.3), paddingBottom: hp(5) },
+
   card: {
     backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 18,
-    marginBottom: 15,
+    borderRadius: rs(10),
+    padding: wp(4.8),
+    marginBottom: hp(1.8),
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: rs(3),
   },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1E3A8A',
-    marginBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    paddingBottom: 8,
+    fontSize: rf(15),
+    fontWeight: '700',
+    color: '#0D2B6E',
+    marginBottom: hp(1.8),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E2E8F0',
+    paddingBottom: hp(0.9),
   },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-    marginTop: 5,
-  },
+  label: { fontSize: rf(12.5), fontWeight: '600', color: '#374151', marginBottom: hp(0.8), marginTop: hp(0.5) },
   input: {
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    borderRadius: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    fontSize: 14,
+    borderRadius: rs(7),
+    paddingVertical: hp(1.3),
+    paddingHorizontal: wp(3.7),
+    fontSize: rf(13.5),
     color: '#1F2937',
-    marginBottom: 15,
+    marginBottom: hp(1.5),
   },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  selectorButton: {
+  textArea:   { height: hp(10), textAlignVertical: 'top' },
+  textAreaSm: { height: hp(8),  textAlignVertical: 'top' },
+
+  selectorBtn: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    borderRadius: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    borderRadius: rs(7),
+    paddingVertical: hp(1.3),
+    paddingHorizontal: wp(3.7),
     backgroundColor: '#fff',
-    marginBottom: 15,
+    marginBottom: hp(1.5),
   },
-  selectorText: {
-    fontSize: 14,
-    color: '#1F2937',
-    fontWeight: '600',
-  },
-  placeholderSelectorText: {
-    fontSize: 14,
-    color: '#9CA3AF',
-  },
-  selectorArrow: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  buttonGroup: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-  },
-  groupButton: {
-    flex: 0.23,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 6,
-    paddingVertical: 10,
+  selectorTxt:         { fontSize: rf(13.5), color: '#1F2937', fontWeight: '600', flex: 1 },
+  selectorPlaceholder: { color: '#9CA3AF', fontWeight: '400' },
+  selectorArrow:       { fontSize: rf(12), color: '#6B7280', marginLeft: wp(1.3) },
+
+  btnGroup: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: hp(1.5) },
+  groupBtn: { flex: 0.23, borderWidth: 1, borderColor: '#D1D5DB', borderRadius: rs(7), paddingVertical: hp(1.2), alignItems: 'center' },
+  groupBtnText: { fontSize: rf(12), fontWeight: '700', color: '#4B5563' },
+
+  submitBtn: {
+    backgroundColor: '#0D2B6E',
+    borderRadius: rs(10),
+    paddingVertical: hp(2),
     alignItems: 'center',
-  },
-  groupButtonText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#4B5563',
-  },
-  submitButton: {
-    backgroundColor: '#D32F2F',
-    borderRadius: 8,
-    padding: 15,
-    alignItems: 'center',
-    marginTop: 10,
+    marginTop: hp(0.5),
     elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: rs(2) },
+    shadowOpacity: 0.15,
+    shadowRadius: rs(4),
   },
-  disabledButton: {
-    opacity: 0.7,
-  },
-  submitButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
+  submitBtnDisabled: { opacity: 0.65 },
+  submitBtnText: { color: '#fff', fontSize: rf(15), fontWeight: '700' },
+
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: {
     backgroundColor: '#fff',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    maxHeight: '75%',
-    padding: 20,
+    borderTopLeftRadius: rs(20),
+    borderTopRightRadius: rs(20),
+    maxHeight: H * 0.75,
+    padding: wp(5.3),
   },
   modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    paddingBottom: 12,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginBottom: hp(2.2), borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E2E8F0', paddingBottom: hp(1.5),
   },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  closeModalButton: {
-    padding: 5,
-  },
-  closeModalText: {
-    fontSize: 18,
-    color: '#9CA3AF',
-    fontWeight: 'bold',
-  },
-  modalItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 5,
-  },
-  modalItemName: {
-    fontSize: 15,
-    color: '#111827',
-    fontWeight: '600',
-  },
-  modalItemCode: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  selectArrowIcon: {
-    fontSize: 16,
-    color: '#9CA3AF',
-  },
-  modalItemSeparator: {
-    height: 1,
-    backgroundColor: '#F3F4F6',
-  },
-  modalEmptyContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  modalEmptyText: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  modalHelpText: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 8,
-    textAlign: 'center',
-  },
+  modalTitle:  { fontSize: rf(15), fontWeight: '700', color: '#1E293B' },
+  modalClose:  { fontSize: rf(18), color: '#94A3B8', fontWeight: '700', padding: rs(4) },
+  modalItem:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: hp(1.8), paddingHorizontal: wp(1.3) },
+  modalItemName: { fontSize: rf(14.5), color: '#1F2937', fontWeight: '600' },
+  modalItemCode: { fontSize: rf(12), color: '#6B7280', marginTop: hp(0.35) },
+  modalArrow:  { fontSize: rf(15), color: '#94A3B8' },
+  sep:         { height: StyleSheet.hairlineWidth, backgroundColor: '#F3F4F6' },
+  modalEmpty:  { padding: hp(5), alignItems: 'center' },
+  modalEmptyText: { fontSize: rf(13.5), color: '#6B7280', fontWeight: '600', textAlign: 'center' },
+  modalHelpText:  { fontSize: rf(12), color: '#9CA3AF', marginTop: hp(0.9), textAlign: 'center' },
 });
 
 export default ReportCreationScreen;
