@@ -140,22 +140,24 @@ const DashboardScreen = ({ navigation }) => {
   const [loading, setLoading]         = useState(true);
   const [refreshing, setRefreshing]   = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
+  const [fetchError, setFetchError]   = useState(null);
   const [isMenuOpen, setIsMenuOpen]   = useState(false);
   const [hazardExpanded, setHazardExpanded] = useState(true);
   const [slideAnim] = useState(new Animated.Value(-W * 0.80));
 
   const fetchDashboardData = async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
+    setFetchError(null);
     try {
       const response = await getUserDashboard();
       if (response.success) {
         setDashboardData(response.data);
       } else {
-        Alert.alert('Error', response.message || 'Failed to fetch dashboard data');
+        setFetchError(response.message || 'Failed to load dashboard');
       }
     } catch (error) {
-      console.error(error);
-      Alert.alert('Error', error.message || 'Error loading dashboard');
+      const msg = typeof error === 'string' ? error : (error?.message || 'Network error — check your connection');
+      setFetchError(msg);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -257,6 +259,18 @@ const DashboardScreen = ({ navigation }) => {
         <View style={s.center}>
           <ActivityIndicator size="large" color={BLUE_ACCENT} />
           <Text style={s.loadingText}>Loading dashboard…</Text>
+        </View>
+      ) : fetchError ? (
+        <View style={s.center}>
+          <Text style={{ fontSize: rf(32), marginBottom: hp(2) }}>⚠️</Text>
+          <Text style={{ fontSize: rf(15), fontWeight: '700', color: TEXT_DARK, marginBottom: hp(1), textAlign: 'center' }}>Connection Failed</Text>
+          <Text style={{ fontSize: rf(12.5), color: TEXT_GRAY, textAlign: 'center', marginBottom: hp(3), paddingHorizontal: wp(8), lineHeight: rf(18) }}>{fetchError}</Text>
+          <TouchableOpacity
+            onPress={() => fetchDashboardData()}
+            style={{ backgroundColor: BLUE_DARK, paddingVertical: hp(1.4), paddingHorizontal: wp(8), borderRadius: rs(8) }}
+          >
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: rf(13) }}>Retry</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <ScrollView
