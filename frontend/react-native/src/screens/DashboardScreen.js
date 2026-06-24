@@ -445,30 +445,34 @@ const DashboardScreen = ({ navigation }) => {
 
               {hazardExpanded && (
                 <View style={s.subGroup}>
-                  <TouchableOpacity style={s.subItem} onPress={() => comingSoon('Executive Dashboard')} activeOpacity={0.7}>
-                    <Text style={s.subArrow}>→</Text>
-                    <Text style={s.subLabel}>Executive Dashboard</Text>
-                  </TouchableOpacity>
+                  {(user?.role === 'Admin' || user?.role === 'admin') && (
+                    <TouchableOpacity style={s.subItem} onPress={() => navigateToScreen('ExecutiveDashboard')} activeOpacity={0.7}>
+                      <Text style={s.subArrow}>→</Text>
+                      <Text style={s.subLabel}>Executive Dashboard</Text>
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity style={[s.subItem, s.subActive]} onPress={closeMenu} activeOpacity={0.7}>
                     <Text style={s.subArrow}>→</Text>
                     <Text style={[s.subLabel, s.subLabelActive]}>My Dashboard</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={s.subItem} onPress={() => { closeMenu(); navigation.navigate('ReportCreation'); }} activeOpacity={0.7}>
+                  <TouchableOpacity style={s.subItem} onPress={() => { closeMenu(); navigation.navigate('ReportsList', { mode: 'my' }); }} activeOpacity={0.7}>
                     <Text style={s.subArrow}>→</Text>
                     <Text style={s.subLabel}>My Safety Actions</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={s.subItem} onPress={() => comingSoon('Reports')} activeOpacity={0.7}>
-                    <Text style={s.subArrow}>→</Text>
-                    <Text style={s.subLabel}>Reports</Text>
-                  </TouchableOpacity>
+                  {(user?.role === 'Admin' || user?.role === 'admin') && (
+                    <TouchableOpacity style={s.subItem} onPress={() => { closeMenu(); navigation.navigate('ReportsList', { mode: 'all' }); }} activeOpacity={0.7}>
+                      <Text style={s.subArrow}>→</Text>
+                      <Text style={s.subLabel}>All Reports</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
 
               {/* Action Tracker */}
-              <TouchableOpacity style={s.moduleRow} onPress={() => comingSoon('Action Tracker')} activeOpacity={0.7}>
+              <TouchableOpacity style={s.moduleRow} onPress={() => { closeMenu(); navigation.navigate('ReportsList', { mode: 'my' }); }} activeOpacity={0.7}>
                 <Text style={s.moduleIcon}>☑️</Text>
                 <Text style={s.moduleTitle}>Action Tracker</Text>
-                <Text style={s.moduleChevron}>∨</Text>
+                <Text style={s.moduleChevron}>→</Text>
               </TouchableOpacity>
 
               {(user?.role === 'Admin' || user?.role === 'admin') && (

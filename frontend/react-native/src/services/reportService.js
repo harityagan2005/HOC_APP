@@ -9,11 +9,21 @@ export const getUserDashboard = async () => {
   }
 };
 
-export const getReports = async (page = 1, limit = 10) => {
+export const getAdminDashboard = async () => {
   try {
-    const response = await api.get('/hoc-input', {
-      params: { page, limit },
-    });
+    const response = await api.get('/dashboard/admin');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+export const getReports = async (page = 1, limit = 20, severity = null, search = null) => {
+  try {
+    const params = { page, limit };
+    if (severity) params.severity = severity;
+    if (search)   params.search   = search;
+    const response = await api.get('/hoc-input', { params });
     return response.data;
   } catch (error) {
     throw error.response?.data || error.message;
