@@ -6,26 +6,144 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  FlatList,
   Alert,
   Dimensions,
   Animated,
   StatusBar,
+  RefreshControl,
+  Platform,
+  PixelRatio,
 } from 'react-native';
 import { getUserDashboard } from '../services/reportService';
 import { AuthContext } from '../../App';
 
-const { width, height } = Dimensions.get('window');
+// ─── Responsive Utilities ────────────────────────────────────────────
+const { width: W, height: H } = Dimensions.get('window');
+const BASE_W = 375; // design baseline (iPhone SE / 6 / 7 / 8)
 
+/** Scale a pixel value relative to screen width */
+const rs = (size) => Math.round((W / BASE_W) * size);
+
+/** Responsive font — width-scaled + pixel-perfect rounding */
+const rf = (size) => PixelRatio.roundToNearestPixel((W / BASE_W) * size);
+
+/** Width percentage */
+const wp = (pct) => (W * pct) / 100;
+
+/** Height percentage */
+const hp = (pct) => (H * pct) / 100;
+
+// ─── Theme ──────────────────────────────────────────────────────────
+const BLUE_DARK   = '#0D2B6E';
+const BLUE_ACCENT = '#2563EB';
+const BG          = '#F0F4F8';
+const CARD_BG     = '#FFFFFF';
+const TEXT_DARK   = '#1E293B';
+const TEXT_GRAY   = '#64748B';
+const TEXT_LIGHT  = '#94A3B8';
+const BORDER      = '#E2E8F0';
+
+// ─── KPI Card ───────────────────────────────────────────────────────
+const KpiCard = ({ label, value, subtitle, icon }) => (
+  <View style={kpiStyles.card}>
+    <View style={kpiStyles.topRow}>
+      <Text style={kpiStyles.label} numberOfLines={1}>{label}</Text>
+      {icon ? <Text style={kpiStyles.icon}>{icon}</Text> : null}
+    </View>
+    <Text style={kpiStyles.value}>{value}</Text>
+    <Text style={kpiStyles.subtitle} numberOfLines={2}>{subtitle}</Text>
+  </View>
+);
+
+const kpiStyles = StyleSheet.create({
+  card: {
+    flex: 1,
+    backgroundColor: CARD_BG,
+    borderRadius: rs(10),
+    padding: wp(3.8),
+    marginHorizontal: wp(1.3),
+    borderWidth: 1,
+    borderColor: BORDER,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: rs(1) },
+    shadowOpacity: 0.06,
+    shadowRadius: rs(3),
+    elevation: 2,
+  },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: hp(0.8),
+  },
+  label: {
+    flex: 1,
+    fontSize: rf(10),
+    fontWeight: '700',
+    color: TEXT_GRAY,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  icon: { fontSize: rf(17), marginLeft: wp(1) },
+  value: {
+    fontSize: rf(34),
+    fontWeight: '800',
+    color: TEXT_DARK,
+    marginBottom: hp(0.4),
+    includeFontPadding: false,
+  },
+  subtitle: { fontSize: rf(10), color: TEXT_LIGHT, lineHeight: rf(14) },
+});
+
+// ─── Severity Row ────────────────────────────────────────────────────
+const SeverityRow = ({ label, count, color }) => (
+  <View style={sevStyles.row}>
+    <View style={[sevStyles.dot, { backgroundColor: color }]} />
+    <Text style={sevStyles.label}>{label}</Text>
+    <View style={[sevStyles.badge, { backgroundColor: color + '18' }]}>
+      <Text style={[sevStyles.count, { color }]}>{count}</Text>
+    </View>
+  </View>
+);
+
+const sevStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: hp(1.3),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: BORDER,
+  },
+  dot: {
+    width: rs(8),
+    height: rs(8),
+    borderRadius: rs(4),
+    marginRight: wp(2.5),
+    flexShrink: 0,
+  },
+  label: { flex: 1, fontSize: rf(13), fontWeight: '600', color: TEXT_DARK },
+  badge: {
+    minWidth: rs(32),
+    paddingHorizontal: wp(2.5),
+    paddingVertical: hp(0.4),
+    borderRadius: rs(12),
+    alignItems: 'center',
+  },
+  count: { fontSize: rf(12), fontWeight: '800' },
+});
+
+// ─── Main Dashboard ──────────────────────────────────────────────────
 const DashboardScreen = ({ navigation }) => {
   const { user, signOut } = useContext(AuthContext);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]         = useState(true);
+  const [refreshing, setRefreshing]   = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [slideAnim] = useState(new Animated.Value(-width * 0.75));
+  const [isMenuOpen, setIsMenuOpen]   = useState(false);
+  const [hazardExpanded, setHazardExpanded] = useState(true);
+  const [slideAnim] = useState(new Animated.Value(-W * 0.80));
 
-  const fetchDashboardData = async () => {
-    setLoading(true);
+  const fetchDashboardData = async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const response = await getUserDashboard();
       if (response.success) {
@@ -38,254 +156,346 @@ const DashboardScreen = ({ navigation }) => {
       Alert.alert('Error', error.message || 'Error loading dashboard');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
+  useEffect(() => { fetchDashboardData(); }, []);
 
-  // Listen for screen focus to refresh dashboard data (e.g. after creating a report)
   useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      fetchDashboardData();
-    });
-    return unsubscribe;
+    const unsub = navigation.addListener('focus', () => fetchDashboardData());
+    return unsub;
   }, [navigation]);
 
-  const toggleMenu = () => {
-    if (isMenuOpen) {
-      Animated.timing(slideAnim, {
-        toValue: -width * 0.75,
-        duration: 250,
-        useNativeDriver: true,
-      }).start(() => setIsMenuOpen(false));
-    } else {
-      setIsMenuOpen(true);
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }).start();
-    }
+  const onRefresh = () => { setRefreshing(true); fetchDashboardData(true); };
+
+  const openMenu = () => {
+    setIsMenuOpen(true);
+    Animated.timing(slideAnim, { toValue: 0, duration: 260, useNativeDriver: true }).start();
   };
 
-  const handleLogout = async () => {
+  const closeMenu = () => {
+    Animated.timing(slideAnim, { toValue: -W * 0.80, duration: 220, useNativeDriver: true })
+      .start(() => setIsMenuOpen(false));
+  };
+
+  const navigateToScreen = (screen) => { closeMenu(); navigation.navigate(screen); };
+
+  const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        onPress: async () => {
-          await signOut();
-        },
-      },
+      { text: 'Logout', style: 'destructive', onPress: async () => { await signOut(); } },
     ]);
   };
 
-  const navigateToScreen = (screenName) => {
-    toggleMenu();
-    navigation.navigate(screenName);
-  };
+  const comingSoon = (name) => { closeMenu(); Alert.alert(name, 'This section is coming soon.'); };
 
-  const getSeverityColor = (severity) => {
-    switch (severity?.toLowerCase()) {
-      case 'critical':
-        return '#DC2626'; // Crimson red
-      case 'high':
-        return '#EA580C'; // Bright Orange
-      case 'medium':
-        return '#D97706'; // Gold/Amber
-      case 'low':
-        return '#0D9488'; // Teal
-      default:
-        return '#4B5563'; // Slate gray
+  const stats = dashboardData?.statistics || {
+    total_reports: 0, critical_count: 0, high_count: 0, medium_count: 0, low_count: 0,
+  };
+  const total     = stats.total_reports || 0;
+  const openCount = (stats.critical_count || 0) + (stats.high_count || 0);
+
+  const getSeverityColor = (sev) => {
+    switch (sev?.toLowerCase()) {
+      case 'critical': return '#DC2626';
+      case 'high':     return '#EA580C';
+      case 'medium':   return '#D97706';
+      case 'low':      return '#16A34A';
+      default:         return '#64748B';
     }
   };
 
-  const stats = dashboardData?.statistics || {
-    total_reports: 0,
-    critical_count: 0,
-    high_count: 0,
-    medium_count: 0,
-    low_count: 0,
+  const getRelativeTime = (dateStr) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const min  = Math.floor(diff / 60000);
+    if (min < 1)  return 'Just now';
+    if (min < 60) return `${min}m ago`;
+    const hr = Math.floor(min / 60);
+    if (hr < 24)  return `${hr}h ago`;
+    const day = Math.floor(hr / 24);
+    if (day < 7)  return `${day}d ago`;
+    return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
   };
 
+  // ─── Render ──────────────────────────────────────────────────────
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#D32F2F" />
+    <View style={s.root}>
+      <StatusBar barStyle="dark-content" backgroundColor={BG} />
 
-      {/* Header Bar */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={toggleMenu} style={styles.menuButton}>
-          <Text style={styles.menuIcon}>☰</Text>
+      {/* App Bar */}
+      <View style={s.appBar}>
+        <TouchableOpacity
+          onPress={openMenu}
+          style={s.menuBtn}
+          hitSlop={{ top: rs(10), bottom: rs(10), left: rs(10), right: rs(10) }}
+        >
+          <View style={s.hamburger}>
+            <View style={s.hLine} />
+            <View style={[s.hLine, { width: rs(14) }]} />
+            <View style={s.hLine} />
+          </View>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>HOC Dashboard</Text>
-        <TouchableOpacity onPress={fetchDashboardData} style={styles.refreshButton}>
-          <Text style={styles.refreshIcon}>🔄</Text>
+
+        <View style={s.breadcrumb}>
+          <Text style={s.bcGray}>SAFETY</Text>
+          <Text style={s.bcSep}> / </Text>
+          <Text style={s.bcActive}>MY DASHBOARD</Text>
+        </View>
+
+        <TouchableOpacity
+          onPress={onRefresh}
+          hitSlop={{ top: rs(10), bottom: rs(10), left: rs(10), right: rs(10) }}
+        >
+          <Text style={s.refreshIcon}>⟳</Text>
         </TouchableOpacity>
       </View>
 
       {loading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#D32F2F" />
+        <View style={s.center}>
+          <ActivityIndicator size="large" color={BLUE_ACCENT} />
+          <Text style={s.loadingText}>Loading dashboard…</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* Welcome User Card */}
-          <View style={styles.welcomeCard}>
-            <Text style={styles.welcomeText}>Welcome back,</Text>
-            <Text style={styles.userNameText}>{user?.name || 'User'}</Text>
-            <Text style={styles.userRoleText}>{user?.role} • ID: {user?.employee_id || 'N/A'}</Text>
-          </View>
-
-          {/* Stats Section */}
-          <Text style={styles.sectionTitle}>Observation Statistics</Text>
-          <View style={styles.statsContainer}>
-            <View style={[styles.statBox, { width: '100%', backgroundColor: '#EFF6FF', borderColor: '#3B82F6' }]}>
-              <Text style={[styles.statValue, { color: '#1D4ED8' }]}>{stats.total_reports || 0}</Text>
-              <Text style={[styles.statLabel, { color: '#1E40AF' }]}>Total Hazards Reported</Text>
+        <ScrollView
+          contentContainerStyle={s.scroll}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={BLUE_ACCENT}
+              colors={[BLUE_ACCENT]}
+            />
+          }
+        >
+          {/* Banner */}
+          <View style={s.banner}>
+            <View style={s.bannerContent}>
+              <Text style={s.bannerTitle}>HSE Performance Dashboard</Text>
+              <Text style={s.bannerSub}>
+                Personal safety observations {'&'} closure performance
+              </Text>
             </View>
-
-            <View style={styles.statsRow}>
-              <View style={[styles.statBox, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
-                <Text style={[styles.statValue, { color: '#DC2626' }]}>{stats.critical_count || 0}</Text>
-                <Text style={[styles.statLabel, { color: '#991B1B' }]}>Critical</Text>
+            <View style={s.bannerRight}>
+              <View style={s.bannerAvatar}>
+                <Text style={s.bannerAvatarText}>
+                  {user?.name?.charAt(0).toUpperCase() || 'U'}
+                </Text>
               </View>
-
-              <View style={[styles.statBox, { backgroundColor: '#FFF7ED', borderColor: '#FFEDD5' }]}>
-                <Text style={[styles.statValue, { color: '#EA580C' }]}>{stats.high_count || 0}</Text>
-                <Text style={[styles.statLabel, { color: '#9A3412' }]}>High</Text>
-              </View>
-            </View>
-
-            <View style={styles.statsRow}>
-              <View style={[styles.statBox, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
-                <Text style={[styles.statValue, { color: '#D97706' }]}>{stats.medium_count || 0}</Text>
-                <Text style={[styles.statLabel, { color: '#92400E' }]}>Medium</Text>
-              </View>
-
-              <View style={[styles.statBox, { backgroundColor: '#F0FDFA', borderColor: '#CCFBF1' }]}>
-                <Text style={[styles.statValue, { color: '#0D9488' }]}>{stats.low_count || 0}</Text>
-                <Text style={[styles.statLabel, { color: '#115E59' }]}>Low</Text>
-              </View>
+              <Text style={s.bannerUser} numberOfLines={1}>
+                {user?.name || 'User'}
+              </Text>
             </View>
           </View>
 
-          {/* Recent Reports List */}
-          <View style={styles.recentHeader}>
-            <Text style={styles.sectionTitle}>My Recent Reports</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('ReportCreation')}>
-              <Text style={styles.addNewReportLink}>+ Add New</Text>
-            </TouchableOpacity>
+          {/* KPI */}
+          <View style={s.sectionBlock}>
+            <View style={s.sectionHeader}>
+              <Text style={s.secIcon}>📊</Text>
+              <Text style={s.secText}>KEY PERFORMANCE INDICATORS</Text>
+            </View>
+            <View style={s.kpiRow}>
+              <KpiCard label="Total Reported" value={total}     subtitle="All logged observations" icon="📋" />
+              <KpiCard label="Open"           value={openCount} subtitle="Pending closure"          icon="🔔" />
+            </View>
           </View>
 
-          {dashboardData?.recent_reports && dashboardData.recent_reports.length > 0 ? (
-            dashboardData.recent_reports.map((item) => (
-              <View key={item.job_id.toString()} style={styles.reportCard}>
-                <View style={styles.reportHeader}>
-                  <Text style={styles.reportJobId}>Job ID: #{item.job_id}</Text>
-                  <View style={[styles.severityBadge, { backgroundColor: getSeverityColor(item.severity) }]}>
-                    <Text style={styles.severityText}>{item.severity}</Text>
-                  </View>
-                </View>
-                <Text style={styles.reportFor} numberOfLines={1}>
-                  Requirement: {item.job_req_for}
-                </Text>
-                <Text style={styles.reportObservation} numberOfLines={2}>
-                  {item.observations}
-                </Text>
-                <Text style={styles.reportDate}>
-                  Reported on: {new Date(item.created_date).toLocaleDateString()}
-                </Text>
-              </View>
-            ))
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No hazard reports submitted yet.</Text>
+          {/* Severity */}
+          <View style={s.sectionBlock}>
+            <View style={s.sectionHeader}>
+              <Text style={s.secIcon}>⚠️</Text>
+              <Text style={s.secText}>SEVERITY BREAKDOWN</Text>
+            </View>
+            <View style={s.card}>
+              <SeverityRow label="Critical" count={stats.critical_count || 0} color="#DC2626" />
+              <SeverityRow label="High"     count={stats.high_count     || 0} color="#EA580C" />
+              <SeverityRow label="Medium"   count={stats.medium_count   || 0} color="#D97706" />
+              <SeverityRow label="Low"      count={stats.low_count      || 0} color="#16A34A" />
+            </View>
+          </View>
+
+          {/* Quick Actions */}
+          <View style={s.sectionBlock}>
+            <View style={s.sectionHeader}>
+              <Text style={s.secIcon}>⚡</Text>
+              <Text style={s.secText}>QUICK ACTIONS</Text>
+            </View>
+            <View style={s.actionsRow}>
               <TouchableOpacity
-                style={styles.emptyButton}
+                style={[s.actionBtn, { borderColor: BLUE_ACCENT + '60' }]}
                 onPress={() => navigation.navigate('ReportCreation')}
+                activeOpacity={0.75}
               >
-                <Text style={styles.emptyButtonText}>Create First Report</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </ScrollView>
-      )}
-
-      {/* Sidebar Drawer Menu Overlay */}
-      {isMenuOpen && (
-        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={toggleMenu}>
-          <Animated.View
-            style={[
-              styles.sidebar,
-              {
-                transform: [{ translateX: slideAnim }],
-              },
-            ]}
-          >
-            {/* Drawer Header */}
-            <View style={styles.drawerHeader}>
-              <View style={styles.drawerUserIcon}>
-                <Text style={styles.drawerUserInitial}>{user?.name?.charAt(0).toUpperCase() || 'U'}</Text>
-              </View>
-              <Text style={styles.drawerUserName}>{user?.name || 'User'}</Text>
-              <Text style={styles.drawerUserEmail}>{user?.email || ''}</Text>
-              <Text style={styles.drawerUserBadge}>{user?.role}</Text>
-            </View>
-
-            {/* Menu Items */}
-            <View style={styles.drawerMenuItems}>
-              <TouchableOpacity style={styles.drawerItem} onPress={toggleMenu}>
-                <Text style={styles.drawerItemIcon}>📊</Text>
-                <Text style={[styles.drawerItemText, styles.activeItemText]}>My Dashboard</Text>
+                <Text style={s.actionIcon}>⚠️</Text>
+                <Text style={s.actionLabel}>{'New Hazard\nReport'}</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.drawerItem}
-                onPress={() => navigateToScreen('ReportCreation')}
-              >
-                <Text style={styles.drawerItemIcon}>⚠️</Text>
-                <Text style={styles.drawerItemText}>Create Hazard Report</Text>
-              </TouchableOpacity>
-
-              {/* Admin Only Options */}
               {(user?.role === 'Admin' || user?.role === 'admin') && (
                 <>
-                  <View style={styles.drawerDivider} />
-                  <Text style={styles.drawerSectionHeader}>Admin Console</Text>
-
                   <TouchableOpacity
-                    style={styles.drawerItem}
-                    onPress={() => navigateToScreen('VariantMaster')}
+                    style={[s.actionBtn, { borderColor: '#7C3AED60' }]}
+                    onPress={() => navigation.navigate('VariantMaster')}
+                    activeOpacity={0.75}
                   >
-                    <Text style={styles.drawerItemIcon}>⚙️</Text>
-                    <Text style={styles.drawerItemText}>Variant Master</Text>
+                    <Text style={s.actionIcon}>⚙️</Text>
+                    <Text style={s.actionLabel}>{'Variant\nMaster'}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={styles.drawerItem}
-                    onPress={() => navigateToScreen('EmployeeMaster')}
+                    style={[s.actionBtn, { borderColor: '#0891B260' }]}
+                    onPress={() => navigation.navigate('EmployeeMaster')}
+                    activeOpacity={0.75}
                   >
-                    <Text style={styles.drawerItemIcon}>👥</Text>
-                    <Text style={styles.drawerItemText}>Employee Master</Text>
+                    <Text style={s.actionIcon}>👥</Text>
+                    <Text style={s.actionLabel}>{'Employee\nMaster'}</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          </View>
+
+          {/* Recent Reports */}
+          <View style={s.sectionBlock}>
+            <View style={[s.sectionHeader, { marginBottom: 0 }]}>
+              <Text style={s.secIcon}>📝</Text>
+              <Text style={[s.secText, { flex: 1 }]}>RECENT REPORTS</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('ReportCreation')}>
+                <Text style={s.addLink}>+ Add New</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ marginTop: hp(1.5) }}>
+              {dashboardData?.recent_reports?.length > 0 ? (
+                dashboardData.recent_reports.map((item) => {
+                  const col = getSeverityColor(item.severity);
+                  return (
+                    <View key={item.job_id.toString()} style={s.reportCard}>
+                      <View style={[s.reportAccent, { backgroundColor: col }]} />
+                      <View style={s.reportBody}>
+                        <View style={s.reportTopRow}>
+                          <Text style={s.reportId}>#{item.job_id}</Text>
+                          <View style={[s.sevPill, { backgroundColor: col + '18' }]}>
+                            <View style={[s.sevDot, { backgroundColor: col }]} />
+                            <Text style={[s.sevText, { color: col }]}>{item.severity}</Text>
+                          </View>
+                        </View>
+                        <Text style={s.reportFor}  numberOfLines={1}>{item.job_req_for}</Text>
+                        <Text style={s.reportObs}  numberOfLines={2}>{item.observations}</Text>
+                        <Text style={s.reportTime}>{getRelativeTime(item.created_date)}</Text>
+                      </View>
+                    </View>
+                  );
+                })
+              ) : (
+                <View style={s.emptyCard}>
+                  <Text style={s.emptyIcon}>📝</Text>
+                  <Text style={s.emptyTitle}>No Reports Yet</Text>
+                  <Text style={s.emptySub}>
+                    Start by creating your first hazard observation report
+                  </Text>
+                  <TouchableOpacity
+                    style={s.emptyBtn}
+                    onPress={() => navigation.navigate('ReportCreation')}
+                  >
+                    <Text style={s.emptyBtnText}>Create Report</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          </View>
+
+          <View style={{ height: hp(4) }} />
+        </ScrollView>
+      )}
+
+      {/* Sidebar Drawer */}
+      {isMenuOpen && (
+        <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={closeMenu}>
+          <Animated.View style={[s.sidebar, { transform: [{ translateX: slideAnim }] }]}>
+            <TouchableOpacity activeOpacity={1}>
+
+              {/* Header */}
+              <View style={s.sbHead}>
+                <View style={s.sbAvatar}>
+                  <Text style={s.sbAvatarText}>
+                    {user?.name?.charAt(0).toUpperCase() || 'U'}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.sbName}   numberOfLines={1}>{user?.name  || 'User'}</Text>
+                  <Text style={s.sbEmail}  numberOfLines={1}>{user?.email || ''}</Text>
+                </View>
+              </View>
+
+              <Text style={s.modulesLabel}>Modules</Text>
+
+              {/* Hazard */}
+              <TouchableOpacity
+                style={s.moduleRow}
+                onPress={() => setHazardExpanded(!hazardExpanded)}
+                activeOpacity={0.7}
+              >
+                <Text style={s.moduleIcon}>⚠️</Text>
+                <Text style={s.moduleTitle}>Hazard</Text>
+                <Text style={s.moduleChevron}>{hazardExpanded ? '∧' : '∨'}</Text>
+              </TouchableOpacity>
+
+              {hazardExpanded && (
+                <View style={s.subGroup}>
+                  <TouchableOpacity style={s.subItem} onPress={() => comingSoon('Executive Dashboard')} activeOpacity={0.7}>
+                    <Text style={s.subArrow}>→</Text>
+                    <Text style={s.subLabel}>Executive Dashboard</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[s.subItem, s.subActive]} onPress={closeMenu} activeOpacity={0.7}>
+                    <Text style={s.subArrow}>→</Text>
+                    <Text style={[s.subLabel, s.subLabelActive]}>My Dashboard</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.subItem} onPress={() => { closeMenu(); navigation.navigate('ReportCreation'); }} activeOpacity={0.7}>
+                    <Text style={s.subArrow}>→</Text>
+                    <Text style={s.subLabel}>My Safety Actions</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.subItem} onPress={() => comingSoon('Reports')} activeOpacity={0.7}>
+                    <Text style={s.subArrow}>→</Text>
+                    <Text style={s.subLabel}>Reports</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Action Tracker */}
+              <TouchableOpacity style={s.moduleRow} onPress={() => comingSoon('Action Tracker')} activeOpacity={0.7}>
+                <Text style={s.moduleIcon}>☑️</Text>
+                <Text style={s.moduleTitle}>Action Tracker</Text>
+                <Text style={s.moduleChevron}>∨</Text>
+              </TouchableOpacity>
+
+              {(user?.role === 'Admin' || user?.role === 'admin') && (
+                <>
+                  <View style={s.divider} />
+                  <Text style={s.adminLabel}>ADMIN</Text>
+                  <TouchableOpacity style={s.subItem} onPress={() => navigateToScreen('VariantMaster')} activeOpacity={0.7}>
+                    <Text style={s.subArrow}>⚙️</Text>
+                    <Text style={s.subLabel}>Variant Master</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.subItem} onPress={() => navigateToScreen('EmployeeMaster')} activeOpacity={0.7}>
+                    <Text style={s.subArrow}>👥</Text>
+                    <Text style={s.subLabel}>Employee Master</Text>
                   </TouchableOpacity>
                 </>
               )}
 
-              <View style={styles.drawerDivider} />
-
-              <TouchableOpacity style={[styles.drawerItem, styles.logoutItem]} onPress={handleLogout}>
-                <Text style={styles.drawerItemIcon}>🔑</Text>
-                <Text style={[styles.drawerItemText, styles.logoutText]}>Logout</Text>
+              <View style={s.divider} />
+              <TouchableOpacity style={s.subItem} onPress={handleLogout} activeOpacity={0.7}>
+                <Text style={s.subArrow}>🚪</Text>
+                <Text style={[s.subLabel, { color: '#DC2626' }]}>Logout</Text>
               </TouchableOpacity>
-            </View>
 
-            {/* Drawer Footer */}
-            <View style={styles.drawerFooter}>
-              <Text style={styles.drawerFooterText}>HOC App v1.0.0</Text>
-              <Text style={styles.drawerFooterSubtext}>Reliance Industries</Text>
-            </View>
+              <View style={s.sbFooter}>
+                <Text style={s.sbFooterText}>HOC App v1.0</Text>
+                <Text style={s.sbFooterSub}>Reliance Industries • KG-D6</Text>
+              </View>
+
+            </TouchableOpacity>
           </Animated.View>
         </TouchableOpacity>
       )}
@@ -293,321 +503,241 @@ const DashboardScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F3F4F6',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  header: {
-    height: 60,
-    backgroundColor: '#D32F2F',
+// ─── Styles ─────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  root:        { flex: 1, backgroundColor: BG },
+  center:      { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { color: TEXT_GRAY, marginTop: hp(1.5), fontSize: rf(13) },
+
+  // App Bar
+  appBar: {
+    height: Platform.OS === 'ios' ? hp(11.5) : hp(7.2),
+    paddingTop: Platform.OS === 'ios' ? hp(5.5) : 0,
+    backgroundColor: CARD_BG,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 15,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-  },
-  menuButton: {
-    padding: 5,
-  },
-  menuIcon: {
-    fontSize: 24,
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  refreshButton: {
-    padding: 5,
-  },
-  refreshIcon: {
-    fontSize: 20,
-  },
-  scrollContent: {
-    padding: 15,
-  },
-  welcomeCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
-    borderLeftWidth: 5,
-    borderLeftColor: '#D32F2F',
+    paddingHorizontal: wp(4.3),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: BORDER,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowOpacity: 0.05,
+    shadowRadius: rs(2),
   },
-  welcomeText: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  userNameText: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginTop: 2,
-  },
-  userRoleText: {
-    fontSize: 13,
-    color: '#4B5563',
-    marginTop: 5,
-    fontWeight: '600',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 12,
-  },
-  statsContainer: {
-    marginBottom: 20,
-  },
-  statsRow: {
+  menuBtn:     { padding: rs(6) },
+  hamburger:   { gap: rs(5) },
+  hLine:       { width: rs(22), height: rs(2), backgroundColor: TEXT_DARK, borderRadius: rs(1) },
+  breadcrumb:  { flexDirection: 'row', alignItems: 'center' },
+  bcGray:      { fontSize: rf(11), fontWeight: '600', color: TEXT_GRAY },
+  bcSep:       { fontSize: rf(11), color: TEXT_LIGHT },
+  bcActive:    { fontSize: rf(11), fontWeight: '800', color: BLUE_DARK },
+  refreshIcon: { fontSize: rf(20), color: TEXT_GRAY },
+
+  scroll: { paddingBottom: hp(2) },
+
+  // Banner
+  banner: {
+    backgroundColor: BLUE_DARK,
+    paddingHorizontal: wp(5.3),
+    paddingVertical: hp(3),
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 10,
   },
-  statBox: {
-    flex: 0.48,
-    borderRadius: 8,
-    padding: 15,
-    borderWidth: 1,
+  bannerContent:    { flex: 1, marginRight: wp(3) },
+  bannerTitle:      { fontSize: rf(19), fontWeight: '800', color: '#FFFFFF', marginBottom: hp(0.7), includeFontPadding: false },
+  bannerSub:        { fontSize: rf(11.5), color: '#93C5FD', lineHeight: rf(17) },
+  bannerRight:      { alignItems: 'center' },
+  bannerAvatar: {
+    width: wp(11.7),
+    height: wp(11.7),
+    borderRadius: wp(5.85),
+    backgroundColor: BLUE_ACCENT,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: rs(2),
+    borderColor: '#93C5FD',
+    marginBottom: hp(0.5),
   },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  statLabel: {
-    fontSize: 12,
-    marginTop: 4,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  recentHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-    marginTop: 5,
-  },
-  addNewReportLink: {
-    color: '#D32F2F',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  reportCard: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 10,
+  bannerAvatarText: { fontSize: rf(17), fontWeight: '800', color: '#fff', includeFontPadding: false },
+  bannerUser:       { fontSize: rf(9.5), color: '#93C5FD', fontWeight: '600', maxWidth: wp(18), textAlign: 'center' },
+
+  // Section
+  sectionBlock:  { marginTop: hp(2.5), paddingHorizontal: wp(4.3) },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: hp(1.5) },
+  secIcon:       { fontSize: rf(13), marginRight: wp(2) },
+  secText:       { fontSize: rf(10), fontWeight: '800', color: TEXT_GRAY, letterSpacing: 0.9, flex: 1 },
+  addLink:       { fontSize: rf(12), fontWeight: '700', color: BLUE_ACCENT },
+
+  // KPI row
+  kpiRow: { flexDirection: 'row', marginHorizontal: -wp(1.3) },
+
+  // Generic card
+  card: {
+    backgroundColor: CARD_BG,
+    borderRadius: rs(10),
+    padding: wp(4.3),
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: BORDER,
     elevation: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
+    shadowOpacity: 0.05,
+    shadowRadius: rs(2),
   },
-  reportHeader: {
+
+  // Quick Actions
+  actionsRow: { flexDirection: 'row', gap: wp(2.7) },
+  actionBtn: {
+    flex: 1,
+    backgroundColor: CARD_BG,
+    borderRadius: rs(10),
+    paddingVertical: hp(2),
+    alignItems: 'center',
+    borderWidth: 1.5,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: rs(2),
+  },
+  actionIcon:  { fontSize: rf(24), marginBottom: hp(0.9) },
+  actionLabel: { fontSize: rf(10.5), fontWeight: '700', color: TEXT_DARK, textAlign: 'center', lineHeight: rf(15) },
+
+  // Report cards
+  reportCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    backgroundColor: CARD_BG,
+    borderRadius: rs(8),
+    marginBottom: hp(1),
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: BORDER,
+    overflow: 'hidden',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: rs(2),
+  },
+  reportAccent:  { width: rs(4) },
+  reportBody:    { flex: 1, padding: wp(3.2) },
+  reportTopRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: hp(0.6) },
+  reportId:      { fontSize: rf(13), fontWeight: '800', color: TEXT_DARK },
+  sevPill:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: wp(2), paddingVertical: hp(0.35), borderRadius: rs(10) },
+  sevDot:        { width: rs(5), height: rs(5), borderRadius: rs(3), marginRight: wp(1.3) },
+  sevText:       { fontSize: rf(10), fontWeight: '700' },
+  reportFor:     { fontSize: rf(13), fontWeight: '600', color: TEXT_DARK, marginBottom: hp(0.4) },
+  reportObs:     { fontSize: rf(11.5), color: TEXT_GRAY, lineHeight: rf(17), marginBottom: hp(0.7) },
+  reportTime:    { fontSize: rf(10), color: TEXT_LIGHT, textAlign: 'right' },
+
+  // Empty state
+  emptyCard: {
+    backgroundColor: CARD_BG,
+    borderRadius: rs(10),
+    padding: wp(8.5),
     alignItems: 'center',
-    marginBottom: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: BORDER,
   },
-  reportJobId: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#374151',
-  },
-  severityBadge: {
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-  },
-  severityText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  reportFor: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  reportObservation: {
-    fontSize: 13,
-    color: '#4B5563',
-    lineHeight: 18,
-    marginBottom: 8,
-  },
-  reportDate: {
-    fontSize: 11,
-    color: '#9CA3AF',
-    textAlign: 'right',
-  },
-  emptyContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-  },
-  emptyText: {
-    color: '#6B7280',
-    fontSize: 14,
-    marginBottom: 15,
-  },
-  emptyButton: {
-    backgroundColor: '#D32F2F',
-    borderRadius: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-  },
-  emptyButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
+  emptyIcon:    { fontSize: rf(36), marginBottom: hp(1.5) },
+  emptyTitle:   { fontSize: rf(15), fontWeight: '800', color: TEXT_DARK, marginBottom: hp(0.7) },
+  emptySub:     { fontSize: rf(12), color: TEXT_GRAY, textAlign: 'center', marginBottom: hp(2.5), lineHeight: rf(17) },
+  emptyBtn:     { backgroundColor: BLUE_ACCENT, borderRadius: rs(8), paddingVertical: hp(1.2), paddingHorizontal: wp(6.4) },
+  emptyBtnText: { color: '#fff', fontWeight: '700', fontSize: rf(13) },
+
+  // Sidebar / Drawer
   backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.35)',
     zIndex: 100,
   },
   sidebar: {
-    width: width * 0.75,
-    height: height,
-    backgroundColor: '#1F2937', // Dark gray/black background for side drawer
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    position: 'absolute',
-    left: 0,
-    top: 0,
+    width: W * 0.80,
+    height: H,
+    backgroundColor: CARD_BG,
+    paddingTop: Platform.OS === 'ios' ? hp(6.5) : hp(4),
+    position: 'absolute', left: 0, top: 0,
     zIndex: 101,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightColor: BORDER,
   },
-  drawerHeader: {
-    alignItems: 'center',
-    marginBottom: 30,
-    borderBottomWidth: 1,
-    borderBottomColor: '#374151',
-    paddingBottom: 20,
-  },
-  drawerUserIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#D32F2F',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  drawerUserInitial: {
-    color: '#fff',
-    fontSize: 28,
-    fontWeight: 'bold',
-  },
-  drawerUserName: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  drawerUserEmail: {
-    color: '#9CA3AF',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  drawerUserBadge: {
-    backgroundColor: '#10B981',
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    marginTop: 8,
-  },
-  drawerMenuItems: {
-    flex: 1,
-  },
-  drawerSectionHeader: {
-    color: '#9CA3AF',
-    fontSize: 11,
-    textTransform: 'uppercase',
-    fontWeight: 'bold',
-    letterSpacing: 1,
-    marginTop: 15,
-    marginBottom: 10,
-    paddingLeft: 10,
-  },
-  drawerItem: {
+  sbHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    marginBottom: 8,
+    paddingHorizontal: wp(4.8),
+    paddingBottom: hp(2.2),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: BORDER,
+    marginBottom: hp(1.5),
   },
-  drawerItemIcon: {
-    fontSize: 18,
-    marginRight: 12,
-  },
-  drawerItemText: {
-    color: '#D1D5DB',
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  activeItemText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  drawerDivider: {
-    height: 1,
-    backgroundColor: '#374151',
-    marginVertical: 10,
-  },
-  logoutItem: {
-    marginTop: 'auto',
-    marginBottom: 20,
-  },
-  logoutText: {
-    color: '#EF4444',
-  },
-  drawerFooter: {
-    borderTopWidth: 1,
-    borderTopColor: '#374151',
-    paddingTop: 15,
-    paddingBottom: 30,
+  sbAvatar: {
+    width: wp(10.7),
+    height: wp(10.7),
+    borderRadius: wp(5.35),
+    backgroundColor: BLUE_ACCENT,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: wp(3.2),
+    flexShrink: 0,
   },
-  drawerFooterText: {
-    color: '#9CA3AF',
-    fontSize: 12,
-    fontWeight: '600',
+  sbAvatarText: { color: '#fff', fontSize: rf(17), fontWeight: '800', includeFontPadding: false },
+  sbName:       { fontSize: rf(13.5), fontWeight: '700', color: TEXT_DARK },
+  sbEmail:      { fontSize: rf(10.5), color: TEXT_GRAY, marginTop: hp(0.2) },
+
+  modulesLabel: {
+    fontSize: rf(10),
+    fontWeight: '800',
+    color: TEXT_GRAY,
+    letterSpacing: 1.2,
+    paddingHorizontal: wp(4.8),
+    marginBottom: hp(0.8),
+    marginTop: hp(0.5),
   },
-  drawerFooterSubtext: {
-    color: '#6B7280',
-    fontSize: 10,
-    marginTop: 2,
+  moduleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: wp(4.8),
+    paddingVertical: hp(1.6),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: BORDER,
   },
+  moduleIcon:    { fontSize: rf(15), marginRight: wp(2.7), width: wp(7) },
+  moduleTitle:   { flex: 1, fontSize: rf(13.5), fontWeight: '700', color: TEXT_DARK },
+  moduleChevron: { fontSize: rf(11), color: TEXT_GRAY, fontWeight: '700' },
+
+  subGroup: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: BORDER,
+  },
+  subItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: hp(1.3),
+    paddingHorizontal: wp(6.4),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#F1F5F9',
+  },
+  subActive:      { backgroundColor: '#EFF6FF' },
+  subArrow:       { fontSize: rf(12), color: TEXT_GRAY, marginRight: wp(2.7), width: wp(5.3) },
+  subLabel:       { fontSize: rf(12.5), color: TEXT_GRAY, fontWeight: '500', flex: 1 },
+  subLabelActive: { color: BLUE_ACCENT, fontWeight: '700' },
+
+  adminLabel: {
+    fontSize: rf(10),
+    fontWeight: '800',
+    color: TEXT_LIGHT,
+    letterSpacing: 1.5,
+    paddingHorizontal: wp(4.8),
+    marginTop: hp(0.8),
+    marginBottom: hp(0.5),
+  },
+  divider:  { height: StyleSheet.hairlineWidth, backgroundColor: BORDER, marginVertical: hp(1) },
+
+  sbFooter:     { alignItems: 'center', paddingVertical: hp(2.5), marginTop: hp(1.5), borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: BORDER },
+  sbFooterText: { fontSize: rf(11), color: TEXT_GRAY, fontWeight: '600' },
+  sbFooterSub:  { fontSize: rf(10), color: TEXT_LIGHT, marginTop: hp(0.3) },
 });
 
 export default DashboardScreen;
