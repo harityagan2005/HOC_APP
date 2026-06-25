@@ -2,9 +2,10 @@ import React, { useState, useEffect, useContext } from 'react';
 import {
   StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView,
   ActivityIndicator, Alert, Modal, FlatList, KeyboardAvoidingView, Platform,
-  Dimensions, PixelRatio, StatusBar,
+  Dimensions, PixelRatio, StatusBar, Image,
 } from 'react-native';
-import { createReport, updateReport } from '../services/reportService';
+import * as ImagePicker from 'expo-image-picker';
+import { createReport, updateReport, uploadImage } from '../services/reportService';
 import { getVariants } from '../services/variantService';
 import { AuthContext } from '../../App';
 
@@ -107,6 +108,33 @@ const s = StyleSheet.create({
   submitBtnDisabled: { opacity: 0.65 },
   submitBtnText: { color: '#fff', fontSize: rf(15), fontWeight: '700' },
 
+  photoRow: { flexDirection: 'row', gap: wp(3), marginBottom: hp(1.5) },
+  photoBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: wp(2),
+    borderWidth: 1.5,
+    borderColor: '#0D2B6E',
+    borderRadius: rs(8),
+    paddingVertical: hp(1.4),
+    backgroundColor: '#EFF6FF',
+  },
+  photoBtnIcon: { fontSize: rf(18) },
+  photoBtnText: { fontSize: rf(13), fontWeight: '700', color: '#0D2B6E' },
+
+  uploadingRow: { flexDirection: 'row', alignItems: 'center', gap: wp(2), marginBottom: hp(1) },
+  uploadingText: { fontSize: rf(12), color: '#64748B' },
+
+  previewContainer: { marginBottom: hp(1.5), borderRadius: rs(8), overflow: 'hidden', position: 'relative' },
+  previewImg:       { width: '100%', height: hp(20), borderRadius: rs(8) },
+  removePhotoBtn:   { position: 'absolute', top: rs(8), right: rs(8), backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: wp(3), paddingVertical: hp(0.5), borderRadius: rs(12) },
+  removePhotoBtnText: { color: '#fff', fontSize: rf(11), fontWeight: '700' },
+  existingUrlText:  { fontSize: rf(11.5), color: '#2563EB', marginBottom: hp(1.5), fontStyle: 'italic' },
+  emailHint:        { backgroundColor: '#EFF6FF', borderRadius: rs(7), padding: wp(3), marginBottom: hp(1.5), flexDirection: 'row', alignItems: 'flex-start' },
+  emailHintText:    { fontSize: rf(11.5), color: '#1D4ED8', lineHeight: rf(16), flex: 1 },
+
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: {
     backgroundColor: '#fff',
@@ -173,7 +201,8 @@ const ReportCreationScreen = ({ navigation, route }) => {
   const [operAct, setOperAct]               = useState(editReport?.oper_act || '');
   const [observations, setObservations]     = useState(editReport?.observations || '');
   const [correctiveActions, setCorrectiveActions] = useState(editReport?.corrective_actions || '');
-  const [accountablePerson, setAccountablePerson] = useState(editReport?.accountable_person || '');
+  const [accountablePerson, setAccountablePerson]           = useState(editReport?.accountable_person || '');
+  const [accountablePersonEmail, setAccountablePersonEmail] = useState(editReport?.accountable_person_email || '');
   const [responsiblePerson, setResponsiblePerson] = useState(editReport?.responsible_person || '');
   const [hod, setHod]                       = useState(editReport?.hod || '');
   const [imageUrl, setImageUrl]             = useState(editReport?.image_url || '');
@@ -184,6 +213,9 @@ const ReportCreationScreen = ({ navigation, route }) => {
   const [remarks, setRemarks]               = useState(editReport?.remarks || '');
   const [severity, setSeverity]             = useState(editReport?.severity || 'Low');
   const [fyYear, setFyYear]                 = useState(editReport?.fy_year || '');
+
+  const [imageUri, setImageUri]             = useState(editReport?.image_url ? null : null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const [modalVisible, setModalVisible]     = useState(false);
   const [modalType, setModalType]           = useState('');
@@ -254,6 +286,44 @@ const ReportCreationScreen = ({ navigation, route }) => {
     setModalVisible(false);
   };
 
+  const pickImage = async (fromCamera) => {
+    try {
+      let permResult;
+      if (fromCamera) {
+        permResult = await ImagePicker.requestCameraPermissionsAsync();
+      } else {
+        permResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      }
+      if (permResult.status !== 'granted') {
+        Alert.alert('Permission Required', fromCamera ? 'Camera access is needed to take photos.' : 'Gallery access is needed to pick photos.');
+        return;
+      }
+      const result = fromCamera
+        ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.7 })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.7 });
+
+      if (!result.canceled && result.assets?.[0]) {
+        const uri = result.assets[0].uri;
+        setImageUri(uri);
+        setUploadingImage(true);
+        try {
+          const res = await uploadImage(uri);
+          if (res.success) {
+            setImageUrl(res.data.url);
+          } else {
+            setImageUrl(uri);
+          }
+        } catch {
+          setImageUrl(uri);
+        } finally {
+          setUploadingImage(false);
+        }
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Could not open camera/gallery. Please try again.');
+    }
+  };
+
   const handleSubmit = async () => {
     if (!jobReqFor.trim())   return Alert.alert('Validation Error', 'Job requirement field is required');
     if (!observerName.trim()) return Alert.alert('Validation Error', 'Observer name is required');
@@ -270,7 +340,9 @@ const ReportCreationScreen = ({ navigation, route }) => {
       area_id: selectedArea.id, status_id: selectedStatus.id, category_id: selectedCategory.id,
       action_department_id: selectedDepartment?.id || null, oper_act: operAct || null,
       observations, corrective_actions: correctiveActions || null,
-      accountable_person: accountablePerson || null, responsible_person: responsiblePerson || null,
+      accountable_person: accountablePerson || null,
+      accountable_person_email: accountablePersonEmail || null,
+      responsible_person: responsiblePerson || null,
       hod: hod || null, image_url: imageUrl || null, stop_job: stopJob,
       end_date: endDate || null, remarks: remarks || null, severity, fy_year: fyYear || null,
     };
@@ -288,7 +360,20 @@ const ReportCreationScreen = ({ navigation, route }) => {
         Alert.alert('Error', response.message || 'Failed to submit report');
       }
     } catch (error) {
-      Alert.alert('Error', error.message || 'Error occurred during submission');
+      let msg;
+      if (typeof error === 'string') {
+        msg = error;
+      } else if (error?.message) {
+        msg = error.message;
+      } else if (error?.errors) {
+        msg = Array.isArray(error.errors) ? error.errors.join(', ') : String(error.errors);
+      } else {
+        msg = JSON.stringify(error) || 'Unknown error';
+      }
+      if (msg === 'Network Error' || msg?.includes('ECONNREFUSED') || msg?.includes('timeout')) {
+        msg = 'Cannot connect to server. Make sure the backend is running and your device is on the same WiFi network.';
+      }
+      Alert.alert('Submission Error', msg);
     } finally {
       setLoading(false);
     }
@@ -392,6 +477,22 @@ const ReportCreationScreen = ({ navigation, route }) => {
             <Text style={s.label}>Accountable Person</Text>
             <TextInput style={s.input} placeholder="Name of accountable person" placeholderTextColor="#9CA3AF" value={accountablePerson} onChangeText={setAccountablePerson} />
 
+            <Text style={s.label}>Accountable Person Email</Text>
+            <TextInput
+              style={s.input}
+              placeholder="email@example.com"
+              placeholderTextColor="#9CA3AF"
+              value={accountablePersonEmail}
+              onChangeText={setAccountablePersonEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            {accountablePersonEmail ? (
+              <View style={s.emailHint}>
+                <Text style={s.emailHintText}>✉️  An assignment email will be sent to this address when the report is submitted.</Text>
+              </View>
+            ) : null}
+
             <Text style={s.label}>Responsible Person</Text>
             <TextInput style={s.input} placeholder="Name of responsible person" placeholderTextColor="#9CA3AF" value={responsiblePerson} onChangeText={setResponsiblePerson} />
 
@@ -404,8 +505,36 @@ const ReportCreationScreen = ({ navigation, route }) => {
             <Text style={s.label}>Financial Year</Text>
             <TextInput style={s.input} placeholder="e.g. 2026-2027" placeholderTextColor="#9CA3AF" value={fyYear} onChangeText={setFyYear} />
 
-            <Text style={s.label}>Image URL</Text>
-            <TextInput style={s.input} placeholder="Link to observation photo" placeholderTextColor="#9CA3AF" value={imageUrl} onChangeText={setImageUrl} />
+            <Text style={s.label}>Observation Photo</Text>
+            <View style={s.photoRow}>
+              <TouchableOpacity style={s.photoBtn} onPress={() => pickImage(true)} activeOpacity={0.8}>
+                <Text style={s.photoBtnIcon}>📷</Text>
+                <Text style={s.photoBtnText}>Take Photo</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.photoBtn} onPress={() => pickImage(false)} activeOpacity={0.8}>
+                <Text style={s.photoBtnIcon}>🖼️</Text>
+                <Text style={s.photoBtnText}>Gallery</Text>
+              </TouchableOpacity>
+            </View>
+            {uploadingImage && (
+              <View style={s.uploadingRow}>
+                <ActivityIndicator size="small" color="#0D2B6E" />
+                <Text style={s.uploadingText}>Uploading photo…</Text>
+              </View>
+            )}
+            {imageUri ? (
+              <View style={s.previewContainer}>
+                <Image source={{ uri: imageUri }} style={s.previewImg} resizeMode="cover" />
+                <TouchableOpacity
+                  style={s.removePhotoBtn}
+                  onPress={() => { setImageUri(null); setImageUrl(''); }}
+                >
+                  <Text style={s.removePhotoBtnText}>✕ Remove</Text>
+                </TouchableOpacity>
+              </View>
+            ) : imageUrl ? (
+              <Text style={s.existingUrlText} numberOfLines={1}>📎 {imageUrl}</Text>
+            ) : null}
 
             <Text style={s.label}>Remarks / Extra Comments</Text>
             <TextInput style={[s.input, s.textAreaSm]} placeholder="Any additional remarks..." placeholderTextColor="#9CA3AF" multiline numberOfLines={3} value={remarks} onChangeText={setRemarks} />
