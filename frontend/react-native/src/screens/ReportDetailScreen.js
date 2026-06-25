@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import {
   StyleSheet, View, Text, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert, Dimensions, PixelRatio, Platform, StatusBar,
+  ActivityIndicator, Alert, Dimensions, PixelRatio, Platform, StatusBar, Image,
 } from 'react-native';
 import { getReportDetail, deleteReport, updateReport } from '../services/reportService';
 import { getVariants } from '../services/variantService';
@@ -263,6 +263,18 @@ const ReportDetailScreen = ({ navigation, route }) => {
           <Field label="Remarks"           value={report.remarks} />
         </View>
 
+        {/* Photo */}
+        {report.image_url ? (
+          <View style={s.card}>
+            <Text style={s.cardTitle}>Observation Photo</Text>
+            <Image
+              source={{ uri: report.image_url }}
+              style={s.reportImage}
+              resizeMode="cover"
+            />
+          </View>
+        ) : null}
+
         {/* Admin delete */}
         {isAdmin && (
           <TouchableOpacity
@@ -353,6 +365,8 @@ const s = StyleSheet.create({
   statusChipActive: { backgroundColor: '#0D2B6E', borderColor: '#0D2B6E' },
   statusChipText: { fontSize: rf(12), fontWeight: '600', color: '#64748B' },
   statusChipTextActive: { color: '#fff' },
+
+  reportImage: { width: '100%', height: hp(22), borderRadius: rs(8) },
 
   deleteBtn: {
     backgroundColor: '#DC2626', borderRadius: rs(10), paddingVertical: hp(2),

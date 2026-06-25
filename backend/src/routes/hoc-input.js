@@ -1,9 +1,22 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const { authMiddleware } = require('../middleware/auth');
 const pool = require('../config/database');
 const { sendSuccess, sendError } = require('../utils/response');
 const { validateReportInput } = require('../utils/validation');
+const { sendReportAssignmentEmail } = require('../utils/emailService');
+
+const uploadDir = path.join(__dirname, '..', '..', 'uploads');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname.replace(/\s/g, '_')}`),
+});
+const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
 
 const LIST_SELECT = `
   SELECT h.*,
@@ -23,6 +36,14 @@ const LIST_SELECT = `
   LEFT JOIN users u             ON h.reported_by            = u.id
 `;
 
+// Upload image
+router.post('/upload', authMiddleware, upload.single('image'), (req, res) => {
+  if (!req.file) return sendError(res, 'No image file provided', 400);
+  const host = req.protocol + '://' + req.get('host');
+  const url = `${host}/uploads/${req.file.filename}`;
+  sendSuccess(res, { url, filename: req.file.filename }, 'Image uploaded successfully', 201);
+});
+
 // Get all reports (paginated)
 router.get('/', authMiddleware, async (req, res) => {
   try {
@@ -30,6 +51,9 @@ router.get('/', authMiddleware, async (req, res) => {
     const limit    = parseInt(req.query.limit)    || 20;
     const severity = req.query.severity || null;
     const search   = req.query.search   || null;
+    const status   = req.query.status   || null;
+    const dateFrom = req.query.dateFrom || null;
+    const dateTo   = req.query.dateTo   || null;
     const offset   = (page - 1) * limit;
 
     const connection = await pool.getConnection();
@@ -39,10 +63,6 @@ router.get('/', authMiddleware, async (req, res) => {
       const conditions = [];
       const params     = [];
 
-      if (!isAdmin) {
-        conditions.push('h.reported_by = ?');
-        params.push(req.user.id);
-      }
       if (severity) {
         conditions.push('h.severity = ?');
         params.push(severity);
@@ -50,6 +70,18 @@ router.get('/', authMiddleware, async (req, res) => {
       if (search) {
         conditions.push('(h.job_req_for LIKE ? OR h.observations LIKE ?)');
         params.push(`%${search}%`, `%${search}%`);
+      }
+      if (status) {
+        conditions.push('h.status_id IN (SELECT id FROM variant_master WHERE LOWER(variant_name) = LOWER(?))');
+        params.push(status);
+      }
+      if (dateFrom) {
+        conditions.push('CAST(h.created_date AS DATE) >= ?');
+        params.push(dateFrom);
+      }
+      if (dateTo) {
+        conditions.push('CAST(h.created_date AS DATE) <= ?');
+        params.push(dateTo);
       }
 
       const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
@@ -88,11 +120,6 @@ router.get('/:id', authMiddleware, async (req, res) => {
       if (reports.length === 0) return sendError(res, 'Report not found', 404);
 
       const report = reports[0];
-      const isAdmin = req.user.role === 'Admin' || req.user.role === 'admin';
-      if (!isAdmin && report.reported_by !== req.user.id) {
-        return sendError(res, 'Unauthorized', 403);
-      }
-
       sendSuccess(res, report, 'Report retrieved successfully', 200);
     } finally {
       connection.release();
@@ -115,7 +142,7 @@ router.post('/', authMiddleware, async (req, res) => {
         job_req_for, company, observer_name, observation_date,
         location_id, area_id, status_id, category_id, action_department_id,
         oper_act, observations, corrective_actions,
-        accountable_person, responsible_person, hod,
+        accountable_person, accountable_person_email, responsible_person, hod,
         image_url, stop_job, end_date, remarks, severity, fy_year
       } = req.body;
 
@@ -124,20 +151,34 @@ router.post('/', authMiddleware, async (req, res) => {
           job_req_for, company, observer_name, observation_date,
           location_id, area_id, status_id, category_id, action_department_id,
           oper_act, observations, corrective_actions,
-          accountable_person, responsible_person, hod,
+          accountable_person, accountable_person_email, responsible_person, hod,
           image_url, stop_job, end_date, remarks, severity, fy_year, reported_by
-        ) OUTPUT INSERTED.job_id VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) OUTPUT INSERTED.job_id VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           job_req_for, company, observer_name,
           observation_date || new Date().toISOString().split('T')[0],
           location_id, area_id, status_id, category_id, action_department_id,
           oper_act, observations, corrective_actions,
-          accountable_person, responsible_person, hod,
+          accountable_person, accountable_person_email || null, responsible_person, hod,
           image_url, stop_job || 'No', end_date, remarks, severity || 'Low', fy_year, req.user.id
         ]
       );
 
-      sendSuccess(res, { job_id: result.insertId }, 'Report created successfully', 201);
+      const reportId = result.insertId;
+      sendSuccess(res, { job_id: reportId }, 'Report created successfully', 201);
+
+      // Send email non-blocking — after response is already sent
+      if (accountable_person_email) {
+        sendReportAssignmentEmail({
+          reportId,
+          report: {
+            job_req_for, company, observer_name, observation_date,
+            observations, corrective_actions, accountable_person,
+            accountable_person_email, responsible_person, severity,
+            stop_job: stop_job || 'No', end_date, remarks, fy_year,
+          },
+        }).catch(err => console.error('Email send error:', err.message));
+      }
     } finally {
       connection.release();
     }
@@ -167,8 +208,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
         'job_req_for', 'company', 'observer_name', 'location_id', 'area_id',
         'status_id', 'category_id', 'action_department_id', 'oper_act',
         'observations', 'corrective_actions', 'accountable_person',
-        'responsible_person', 'hod', 'image_url', 'stop_job', 'end_date',
-        'remarks', 'severity', 'fy_year'
+        'accountable_person_email', 'responsible_person', 'hod', 'image_url',
+        'stop_job', 'end_date', 'remarks', 'severity', 'fy_year'
       ];
       const updates = [];
       const values  = [];

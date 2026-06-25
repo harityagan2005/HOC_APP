@@ -13,6 +13,7 @@ import ReportDetailScreen       from './src/screens/ReportDetailScreen';
 import ExecutiveDashboardScreen from './src/screens/ExecutiveDashboardScreen';
 import VariantMasterScreen      from './src/screens/VariantMasterScreen';
 import EmployeeMasterScreen     from './src/screens/EmployeeMasterScreen';
+import AdminProfileScreen       from './src/screens/AdminProfileScreen';
 
 const Stack = createStackNavigator();
 export const AuthContext = createContext();
@@ -89,6 +90,7 @@ export default function App() {
               <Stack.Screen name="ExecutiveDashboard" component={ExecutiveDashboardScreen} />
               <Stack.Screen name="VariantMaster"      component={VariantMasterScreen} />
               <Stack.Screen name="EmployeeMaster"     component={EmployeeMasterScreen} />
+              <Stack.Screen name="AdminProfile"       component={AdminProfileScreen} />
             </>
           )}
         </Stack.Navigator>
