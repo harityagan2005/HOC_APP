@@ -18,11 +18,10 @@ const getUserDashboard = async (req, res) => {
       }
 
       const [reports] = await connection.query(
-        `SELECT job_id, job_req_for, observations, severity, created_date
+        `SELECT TOP 5 job_id, job_req_for, observations, severity, created_date
          FROM hoc_input
          WHERE reported_by = ?
-         ORDER BY created_date DESC
-         LIMIT 5`,
+         ORDER BY created_date DESC`,
         [userId]
       );
 
@@ -68,31 +67,29 @@ const getAdminDashboard = async (req, res) => {
           SUM(CASE WHEN severity = 'Medium'   THEN 1 ELSE 0 END) as medium_count,
           SUM(CASE WHEN severity = 'Low'      THEN 1 ELSE 0 END) as low_count,
           SUM(CASE WHEN stop_job = 'Yes'      THEN 1 ELSE 0 END) as stop_job_count,
-          SUM(CASE WHEN MONTH(created_date) = MONTH(NOW()) AND YEAR(created_date) = YEAR(NOW()) THEN 1 ELSE 0 END) as this_month,
-          SUM(CASE WHEN MONTH(created_date) = MONTH(NOW() - INTERVAL 1 MONTH) AND YEAR(created_date) = YEAR(NOW() - INTERVAL 1 MONTH) THEN 1 ELSE 0 END) as last_month
+          SUM(CASE WHEN MONTH(created_date) = MONTH(GETDATE()) AND YEAR(created_date) = YEAR(GETDATE()) THEN 1 ELSE 0 END) as this_month,
+          SUM(CASE WHEN MONTH(created_date) = MONTH(DATEADD(month, -1, GETDATE())) AND YEAR(created_date) = YEAR(DATEADD(month, -1, GETDATE())) THEN 1 ELSE 0 END) as last_month
          FROM hoc_input`
       );
 
       // Top reporters
       const [topReporters] = await connection.query(
-        `SELECT u.name, u.employee_id,
+        `SELECT TOP 5 u.name, u.employee_id,
           COUNT(h.job_id) as report_count,
           SUM(CASE WHEN h.severity = 'Critical' THEN 1 ELSE 0 END) as critical_count
          FROM hoc_input h
          JOIN users u ON h.reported_by = u.id
          GROUP BY h.reported_by, u.name, u.employee_id
-         ORDER BY report_count DESC
-         LIMIT 5`
+         ORDER BY report_count DESC`
       );
 
       // Recent 10 reports across all users (with reporter name)
       const [recentReports] = await connection.query(
-        `SELECT h.job_id, h.job_req_for, h.severity, h.observations, h.created_date,
+        `SELECT TOP 10 h.job_id, h.job_req_for, h.severity, h.observations, h.created_date,
           u.name as reporter_name, u.employee_id as reporter_emp_id
          FROM hoc_input h
          JOIN users u ON h.reported_by = u.id
-         ORDER BY h.created_date DESC
-         LIMIT 10`
+         ORDER BY h.created_date DESC`
       );
 
       // Status breakdown

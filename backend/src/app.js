@@ -24,7 +24,7 @@ let DB_CONNECTED = false;
 pool.getConnection()
   .then(conn => {
     DB_CONNECTED = true;
-    console.log('✅ MySQL Database connected successfully');
+    console.log('✅ MSSQL Database connected successfully');
     conn.release();
   })
   .catch(err => {

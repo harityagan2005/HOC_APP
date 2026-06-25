@@ -58,8 +58,8 @@ router.get('/', authMiddleware, async (req, res) => {
       const [countRes] = await connection.query(countBase, params);
       const total      = countRes[0].total;
 
-      const listQuery = LIST_SELECT + where + ' ORDER BY h.created_date DESC LIMIT ? OFFSET ?';
-      const [reports] = await connection.query(listQuery, [...params, limit, offset]);
+      const listQuery = LIST_SELECT + where + ' ORDER BY h.created_date DESC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY';
+      const [reports] = await connection.query(listQuery, [...params, offset, limit]);
 
       sendSuccess(res, {
         reports,
@@ -126,7 +126,7 @@ router.post('/', authMiddleware, async (req, res) => {
           oper_act, observations, corrective_actions,
           accountable_person, responsible_person, hod,
           image_url, stop_job, end_date, remarks, severity, fy_year, reported_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) OUTPUT INSERTED.job_id VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           job_req_for, company, observer_name,
           observation_date || new Date().toISOString().split('T')[0],
@@ -180,7 +180,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
       values.push(id);
       await connection.query(
-        `UPDATE hoc_input SET modified_date = NOW(), ${updates.join(', ')} WHERE job_id = ?`,
+        `UPDATE hoc_input SET modified_date = GETDATE(), ${updates.join(', ')} WHERE job_id = ?`,
         values
       );
 
