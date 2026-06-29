@@ -1,7 +1,7 @@
 {
   "name": "hoc_app_backend",
   "version": "1.0.0",
-  "description": "HOC (Hazard Observation Card) App Backend with Express.js and MySQL",
+  "description": "HOC (Hazard Observation Card) App Backend with Express.js and SQL Server",
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
@@ -25,9 +25,9 @@
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.0",
     "morgan": "^1.10.0",
-    "msnodesqlv8": "^5.2.1",
     "mssql": "^12.6.0",
     "multer": "^1.4.5-lts.1",
+    "nodemailer": "^9.0.1",
     "validator": "^13.11.0"
   },
   "devDependencies": {

@@ -11,8 +11,11 @@ dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 // Initialize express app
 const app = express();
 
+// Serve uploaded images
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 // Middleware
-app.use(helmet()); // Security headers
+app.use(helmet({ crossOriginResourcePolicy: false })); // Security headers
 app.use(cors()); // Enable CORS
 app.use(morgan('combined')); // Logging
 app.use(express.json({ limit: '50mb' })); // Parse JSON
@@ -24,7 +27,7 @@ let DB_CONNECTED = false;
 pool.getConnection()
   .then(conn => {
     DB_CONNECTED = true;
-    console.log('✅ MySQL Database connected successfully');
+    console.log('✅ MSSQL Database connected successfully');
     conn.release();
   })
   .catch(err => {

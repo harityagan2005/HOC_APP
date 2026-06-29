@@ -46,15 +46,16 @@ const TEXT_LIGHT  = '#94A3B8';
 const BORDER      = '#E2E8F0';
 
 // ─── KPI Card ───────────────────────────────────────────────────────
-const KpiCard = ({ label, value, subtitle, icon }) => (
-  <View style={kpiStyles.card}>
+const KpiCard = ({ label, value, subtitle, icon, onPress }) => (
+  <TouchableOpacity style={kpiStyles.card} onPress={onPress} activeOpacity={onPress ? 0.75 : 1}>
     <View style={kpiStyles.topRow}>
       <Text style={kpiStyles.label} numberOfLines={1}>{label}</Text>
       {icon ? <Text style={kpiStyles.icon}>{icon}</Text> : null}
     </View>
     <Text style={kpiStyles.value}>{value}</Text>
     <Text style={kpiStyles.subtitle} numberOfLines={2}>{subtitle}</Text>
-  </View>
+    {onPress && <Text style={kpiStyles.tapHint}>Tap to view →</Text>}
+  </TouchableOpacity>
 );
 
 const kpiStyles = StyleSheet.create({
@@ -86,7 +87,8 @@ const kpiStyles = StyleSheet.create({
     letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
-  icon: { fontSize: rf(17), marginLeft: wp(1) },
+  icon:    { fontSize: rf(17), marginLeft: wp(1) },
+  tapHint: { fontSize: rf(9), color: '#93C5FD' || '#2563EB', marginTop: hp(0.6), fontWeight: '600' },
   value: {
     fontSize: rf(34),
     fontWeight: '800',
@@ -98,14 +100,15 @@ const kpiStyles = StyleSheet.create({
 });
 
 // ─── Severity Row ────────────────────────────────────────────────────
-const SeverityRow = ({ label, count, color }) => (
-  <View style={sevStyles.row}>
+const SeverityRow = ({ label, count, color, onPress }) => (
+  <TouchableOpacity style={sevStyles.row} onPress={onPress} activeOpacity={onPress ? 0.7 : 1}>
     <View style={[sevStyles.dot, { backgroundColor: color }]} />
     <Text style={sevStyles.label}>{label}</Text>
     <View style={[sevStyles.badge, { backgroundColor: color + '18' }]}>
       <Text style={[sevStyles.count, { color }]}>{count}</Text>
     </View>
-  </View>
+    {onPress && <Text style={[sevStyles.arrow, { color }]}>→</Text>}
+  </TouchableOpacity>
 );
 
 const sevStyles = StyleSheet.create({
@@ -132,6 +135,7 @@ const sevStyles = StyleSheet.create({
     alignItems: 'center',
   },
   count: { fontSize: rf(12), fontWeight: '800' },
+  arrow: { fontSize: rf(14), fontWeight: '700', marginLeft: wp(2) },
 });
 
 // ─── Main Dashboard ──────────────────────────────────────────────────
@@ -140,22 +144,24 @@ const DashboardScreen = ({ navigation }) => {
   const [loading, setLoading]         = useState(true);
   const [refreshing, setRefreshing]   = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
+  const [fetchError, setFetchError]   = useState(null);
   const [isMenuOpen, setIsMenuOpen]   = useState(false);
   const [hazardExpanded, setHazardExpanded] = useState(true);
   const [slideAnim] = useState(new Animated.Value(-W * 0.80));
 
   const fetchDashboardData = async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
+    setFetchError(null);
     try {
       const response = await getUserDashboard();
       if (response.success) {
         setDashboardData(response.data);
       } else {
-        Alert.alert('Error', response.message || 'Failed to fetch dashboard data');
+        setFetchError(response.message || 'Failed to load dashboard');
       }
     } catch (error) {
-      console.error(error);
-      Alert.alert('Error', error.message || 'Error loading dashboard');
+      const msg = typeof error === 'string' ? error : (error?.message || 'Network error — check your connection');
+      setFetchError(msg);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -258,6 +264,18 @@ const DashboardScreen = ({ navigation }) => {
           <ActivityIndicator size="large" color={BLUE_ACCENT} />
           <Text style={s.loadingText}>Loading dashboard…</Text>
         </View>
+      ) : fetchError ? (
+        <View style={s.center}>
+          <Text style={{ fontSize: rf(32), marginBottom: hp(2) }}>⚠️</Text>
+          <Text style={{ fontSize: rf(15), fontWeight: '700', color: TEXT_DARK, marginBottom: hp(1), textAlign: 'center' }}>Connection Failed</Text>
+          <Text style={{ fontSize: rf(12.5), color: TEXT_GRAY, textAlign: 'center', marginBottom: hp(3), paddingHorizontal: wp(8), lineHeight: rf(18) }}>{fetchError}</Text>
+          <TouchableOpacity
+            onPress={() => fetchDashboardData()}
+            style={{ backgroundColor: BLUE_DARK, paddingVertical: hp(1.4), paddingHorizontal: wp(8), borderRadius: rs(8) }}
+          >
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: rf(13) }}>Retry</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <ScrollView
           contentContainerStyle={s.scroll}
@@ -298,8 +316,14 @@ const DashboardScreen = ({ navigation }) => {
               <Text style={s.secText}>KEY PERFORMANCE INDICATORS</Text>
             </View>
             <View style={s.kpiRow}>
-              <KpiCard label="Total Reported" value={total}     subtitle="All logged observations" icon="📋" />
-              <KpiCard label="Open"           value={openCount} subtitle="Pending closure"          icon="🔔" />
+              <KpiCard
+                label="Total Reported" value={total} subtitle="All logged observations" icon="📋"
+                onPress={() => navigation.navigate('ReportsList', { mode: 'all' })}
+              />
+              <KpiCard
+                label="Open" value={openCount} subtitle="Pending closure" icon="🔔"
+                onPress={() => navigation.navigate('ReportsList', { mode: 'all', initialStatus: 'Open' })}
+              />
             </View>
           </View>
 
@@ -310,10 +334,14 @@ const DashboardScreen = ({ navigation }) => {
               <Text style={s.secText}>SEVERITY BREAKDOWN</Text>
             </View>
             <View style={s.card}>
-              <SeverityRow label="Critical" count={stats.critical_count || 0} color="#DC2626" />
-              <SeverityRow label="High"     count={stats.high_count     || 0} color="#EA580C" />
-              <SeverityRow label="Medium"   count={stats.medium_count   || 0} color="#D97706" />
-              <SeverityRow label="Low"      count={stats.low_count      || 0} color="#16A34A" />
+              <SeverityRow label="Critical" count={stats.critical_count || 0} color="#DC2626"
+                onPress={() => navigation.navigate('ReportsList', { mode: 'all', initialSeverity: 'Critical' })} />
+              <SeverityRow label="High"     count={stats.high_count     || 0} color="#EA580C"
+                onPress={() => navigation.navigate('ReportsList', { mode: 'all', initialSeverity: 'High' })} />
+              <SeverityRow label="Medium"   count={stats.medium_count   || 0} color="#D97706"
+                onPress={() => navigation.navigate('ReportsList', { mode: 'all', initialSeverity: 'Medium' })} />
+              <SeverityRow label="Low"      count={stats.low_count      || 0} color="#16A34A"
+                onPress={() => navigation.navigate('ReportsList', { mode: 'all', initialSeverity: 'Low' })} />
             </View>
           </View>
 
@@ -384,6 +412,9 @@ const DashboardScreen = ({ navigation }) => {
                         </View>
                         <Text style={s.reportFor}  numberOfLines={1}>{item.job_req_for}</Text>
                         <Text style={s.reportObs}  numberOfLines={2}>{item.observations}</Text>
+                        {item.reporter_name ? (
+                          <Text style={s.reportReporter}>👤 {item.reporter_name}</Text>
+                        ) : null}
                         <Text style={s.reportTime}>{getRelativeTime(item.created_date)}</Text>
                       </View>
                     </View>
@@ -445,30 +476,28 @@ const DashboardScreen = ({ navigation }) => {
 
               {hazardExpanded && (
                 <View style={s.subGroup}>
-                  <TouchableOpacity style={s.subItem} onPress={() => comingSoon('Executive Dashboard')} activeOpacity={0.7}>
-                    <Text style={s.subArrow}>→</Text>
-                    <Text style={s.subLabel}>Executive Dashboard</Text>
-                  </TouchableOpacity>
+                  {(user?.role === 'Admin' || user?.role === 'admin') && (
+                    <TouchableOpacity style={s.subItem} onPress={() => navigateToScreen('ExecutiveDashboard')} activeOpacity={0.7}>
+                      <Text style={s.subArrow}>→</Text>
+                      <Text style={s.subLabel}>Executive Dashboard</Text>
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity style={[s.subItem, s.subActive]} onPress={closeMenu} activeOpacity={0.7}>
                     <Text style={s.subArrow}>→</Text>
                     <Text style={[s.subLabel, s.subLabelActive]}>My Dashboard</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={s.subItem} onPress={() => { closeMenu(); navigation.navigate('ReportCreation'); }} activeOpacity={0.7}>
+                  <TouchableOpacity style={s.subItem} onPress={() => { closeMenu(); navigation.navigate('ReportsList', { mode: 'all' }); }} activeOpacity={0.7}>
                     <Text style={s.subArrow}>→</Text>
-                    <Text style={s.subLabel}>My Safety Actions</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={s.subItem} onPress={() => comingSoon('Reports')} activeOpacity={0.7}>
-                    <Text style={s.subArrow}>→</Text>
-                    <Text style={s.subLabel}>Reports</Text>
+                    <Text style={s.subLabel}>All Reports</Text>
                   </TouchableOpacity>
                 </View>
               )}
 
               {/* Action Tracker */}
-              <TouchableOpacity style={s.moduleRow} onPress={() => comingSoon('Action Tracker')} activeOpacity={0.7}>
+              <TouchableOpacity style={s.moduleRow} onPress={() => { closeMenu(); navigation.navigate('ReportsList', { mode: 'all' }); }} activeOpacity={0.7}>
                 <Text style={s.moduleIcon}>☑️</Text>
                 <Text style={s.moduleTitle}>Action Tracker</Text>
-                <Text style={s.moduleChevron}>∨</Text>
+                <Text style={s.moduleChevron}>→</Text>
               </TouchableOpacity>
 
               {(user?.role === 'Admin' || user?.role === 'admin') && (
@@ -487,6 +516,10 @@ const DashboardScreen = ({ navigation }) => {
               )}
 
               <View style={s.divider} />
+              <TouchableOpacity style={s.subItem} onPress={() => navigateToScreen('AdminProfile')} activeOpacity={0.7}>
+                <Text style={s.subArrow}>👤</Text>
+                <Text style={s.subLabel}>My Profile</Text>
+              </TouchableOpacity>
               <TouchableOpacity style={s.subItem} onPress={handleLogout} activeOpacity={0.7}>
                 <Text style={s.subArrow}>🚪</Text>
                 <Text style={[s.subLabel, { color: '#DC2626' }]}>Logout</Text>
@@ -631,8 +664,9 @@ const s = StyleSheet.create({
   sevDot:        { width: rs(5), height: rs(5), borderRadius: rs(3), marginRight: wp(1.3) },
   sevText:       { fontSize: rf(10), fontWeight: '700' },
   reportFor:     { fontSize: rf(13), fontWeight: '600', color: TEXT_DARK, marginBottom: hp(0.4) },
-  reportObs:     { fontSize: rf(11.5), color: TEXT_GRAY, lineHeight: rf(17), marginBottom: hp(0.7) },
-  reportTime:    { fontSize: rf(10), color: TEXT_LIGHT, textAlign: 'right' },
+  reportObs:      { fontSize: rf(11.5), color: TEXT_GRAY, lineHeight: rf(17), marginBottom: hp(0.4) },
+  reportReporter: { fontSize: rf(10), color: BLUE_ACCENT, marginBottom: hp(0.4), fontWeight: '600' },
+  reportTime:     { fontSize: rf(10), color: TEXT_LIGHT, textAlign: 'right' },
 
   // Empty state
   emptyCard: {
