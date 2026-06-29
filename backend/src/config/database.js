@@ -1,19 +1,16 @@
-const sql = require('mssql');
+const sql = require('mssql/msnodesqlv8');
 const dotenv = require('dotenv');
 const path = require('path');
 
 dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') });
 
+const server = process.env.DB_HOST === 'localhost' ? '(local)' : process.env.DB_HOST || '(local)';
+const dbUser = process.env.DB_USER || 'sa';
+const dbPassword = process.env.DB_PASSWORD || '';
+const dbName = process.env.DB_NAME || 'hoc_app';
+
 const config = {
-  server: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '1433'),
-  user: process.env.DB_USER || 'sa',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'hoc_app',
-  options: {
-    encrypt: process.env.DB_ENCRYPT === 'true',
-    trustServerCertificate: true,
-  },
+  connectionString: `Driver={ODBC Driver 18 for SQL Server};Server=${server};Database=${dbName};UID=${dbUser};PWD=${dbPassword};TrustServerCertificate=yes;`,
   pool: {
     max: parseInt(process.env.DB_POOL_SIZE || '10'),
     min: 0,
@@ -69,7 +66,7 @@ const pool = {
 };
 
 getPool()
-  .then(() => console.log('MSSQL connection pool created successfully'))
+  .then(() => console.log('MSSQL connection pool created successfully (via ODBC Shared Memory)'))
   .catch(err => console.error('Error creating connection pool:', err.message));
 
 module.exports = pool;
