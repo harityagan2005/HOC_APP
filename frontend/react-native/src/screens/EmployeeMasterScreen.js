@@ -15,18 +15,18 @@ const hp = (p) => (H * p) / 100;
 const STATUSBAR_H = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) : 0;
 
 const EmployeeMasterScreen = ({ navigation }) => {
-  const [loading, setLoading]               = useState(true);
-  const [employees, setEmployees]           = useState([]);
-  const [searchQuery, setSearchQuery]       = useState('');
+  const [loading, setLoading] = useState(true);
+  const [employees, setEmployees] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [formModalVisible, setFormModalVisible] = useState(false);
-  const [submitting, setSubmitting]         = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
-  const [empId, setEmpId]     = useState('');
-  const [name, setName]       = useState('');
-  const [email, setEmail]     = useState('');
-  const [phone, setPhone]     = useState('');
+  const [empId, setEmpId] = useState('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole]       = useState('User');
+  const [role, setRole] = useState('User');
   const [isActive, setIsActive] = useState(true);
 
   const fetchEmployeesData = async () => {
@@ -36,7 +36,7 @@ const EmployeeMasterScreen = ({ navigation }) => {
       if (r.success && r.data) setEmployees(r.data);
       else Alert.alert('Error', r.message || 'Failed to fetch employees');
     } catch (e) {
-      Alert.alert('Error', e.message || 'Error loading employees');
+      Alert.alert('Error', e.message || (typeof e === 'string' ? e : 'Error loading employees'));
     } finally {
       setLoading(false);
     }
@@ -60,7 +60,7 @@ const EmployeeMasterScreen = ({ navigation }) => {
   };
 
   const handleSubmit = async () => {
-    if (!name.trim())  return Alert.alert('Validation Error', 'Name is required');
+    if (!name.trim()) return Alert.alert('Validation Error', 'Name is required');
     if (!email.trim()) return Alert.alert('Validation Error', 'Email is required');
     if (!phone.trim()) return Alert.alert('Validation Error', 'Phone is required');
     setSubmitting(true);
@@ -70,14 +70,14 @@ const EmployeeMasterScreen = ({ navigation }) => {
         if (r.success) { Alert.alert('Success', 'Employee updated'); setFormModalVisible(false); fetchEmployeesData(); }
         else Alert.alert('Error', r.message || 'Update failed');
       } else {
-        if (!empId.trim())              return Alert.alert('Validation Error', 'Employee ID is required');
+        if (!empId.trim()) return Alert.alert('Validation Error', 'Employee ID is required');
         if (!password || password.length < 6) return Alert.alert('Validation Error', 'Password must be at least 6 characters');
         const r = await addEmployee({ employee_id: empId, name, email, phone, password, role });
         if (r.success) { Alert.alert('Success', 'Employee added'); setFormModalVisible(false); fetchEmployeesData(); }
         else Alert.alert('Error', r.message || 'Add failed');
       }
     } catch (e) {
-      Alert.alert('Error', e.message || 'Operation failed');
+      Alert.alert('Error', e.message || (typeof e === 'string' ? e : 'Operation failed'));
     } finally {
       setSubmitting(false);
     }
@@ -93,16 +93,18 @@ const EmployeeMasterScreen = ({ navigation }) => {
             const r = await deleteEmployee(item.id);
             if (r.success) { Alert.alert('Success', 'Employee deleted'); fetchEmployeesData(); }
             else Alert.alert('Error', r.message || 'Delete failed');
-          } catch (e) { Alert.alert('Error', e.message || 'Delete failed'); }
+          } catch (e) { Alert.alert('Error', e.message || (typeof e === 'string' ? e : 'Delete failed')); }
         },
       },
     ]);
   };
 
   const filtered = employees.filter((e) =>
-    e.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    e.employee_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    e.email.toLowerCase().includes(searchQuery.toLowerCase())
+    e && (
+      (e.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (e.employee_id || '').toString().toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (e.email || '').toLowerCase().includes(searchQuery.toLowerCase())
+    )
   );
 
   return (
@@ -141,8 +143,8 @@ const EmployeeMasterScreen = ({ navigation }) => {
               <View style={s.cardTop}>
                 <Text style={s.empName} numberOfLines={1}>{item.name}</Text>
                 <View style={s.badgeRow}>
-                  <View style={[s.badge, item.role.toLowerCase() === 'admin' ? s.adminBadge : s.userBadge]}>
-                    <Text style={[s.badgeText, item.role.toLowerCase() === 'admin' ? s.adminBadgeText : s.userBadgeText]}>{item.role}</Text>
+                  <View style={[s.badge, (item.role || '').toLowerCase() === 'admin' ? s.adminBadge : s.userBadge]}>
+                    <Text style={[s.badgeText, (item.role || '').toLowerCase() === 'admin' ? s.adminBadgeText : s.userBadgeText]}>{item.role || 'User'}</Text>
                   </View>
                   <View style={[s.badge, item.is_active ? s.activeBadge : s.inactiveBadge]}>
                     <Text style={[s.badgeText, item.is_active ? s.activeBadgeText : s.inactiveBadgeText]}>{item.is_active ? 'Active' : 'Inactive'}</Text>
@@ -240,7 +242,7 @@ const EmployeeMasterScreen = ({ navigation }) => {
 };
 
 const s = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: '#F0F4F8' },
+  root: { flex: 1, backgroundColor: '#F0F4F8' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   header: {
@@ -253,13 +255,13 @@ const s = StyleSheet.create({
     paddingHorizontal: wp(4.3),
     elevation: 4,
   },
-  backBtn:     { padding: rs(6) },
-  backIcon:    { fontSize: rf(22), color: '#fff', fontWeight: '700' },
+  backBtn: { padding: rs(6) },
+  backIcon: { fontSize: rf(22), color: '#fff', fontWeight: '700' },
   headerTitle: { fontSize: rf(17), fontWeight: '700', color: '#fff' },
-  addBtn:      { paddingVertical: hp(0.7), paddingHorizontal: wp(3.2), backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: rs(6) },
-  addBtnText:  { color: '#fff', fontWeight: '700', fontSize: rf(13) },
+  addBtn: { paddingVertical: hp(0.7), paddingHorizontal: wp(3.2), backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: rs(6) },
+  addBtnText: { color: '#fff', fontWeight: '700', fontSize: rf(13) },
 
-  searchWrap:  { backgroundColor: '#fff', paddingHorizontal: wp(4.3), paddingVertical: hp(1.2), borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E2E8F0' },
+  searchWrap: { backgroundColor: '#fff', paddingHorizontal: wp(4.3), paddingVertical: hp(1.2), borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E2E8F0' },
   searchInput: { backgroundColor: '#F0F4F8', borderWidth: 1, borderColor: '#D1D5DB', borderRadius: rs(8), paddingVertical: hp(1.2), paddingHorizontal: wp(3.7), fontSize: rf(13.5), color: '#1F2937' },
 
   listContent: { padding: wp(4.3), paddingBottom: hp(3) },
@@ -274,27 +276,27 @@ const s = StyleSheet.create({
     shadowOpacity: 0.07,
     shadowRadius: rs(3),
   },
-  cardTop:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: hp(0.8) },
-  empName:  { fontSize: rf(14.5), fontWeight: '700', color: '#1E293B', flex: 1, marginRight: wp(2) },
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: hp(0.8) },
+  empName: { fontSize: rf(14.5), fontWeight: '700', color: '#1E293B', flex: 1, marginRight: wp(2) },
   badgeRow: { flexDirection: 'row', gap: wp(1.3) },
-  badge:    { paddingHorizontal: wp(2.1), paddingVertical: hp(0.35), borderRadius: rs(10) },
+  badge: { paddingHorizontal: wp(2.1), paddingVertical: hp(0.35), borderRadius: rs(10) },
   badgeText: { fontSize: rf(10), fontWeight: '700' },
-  adminBadge:    { backgroundColor: '#EFF6FF' },
+  adminBadge: { backgroundColor: '#EFF6FF' },
   adminBadgeText: { color: '#1E40AF' },
-  userBadge:     { backgroundColor: '#F1F5F9' },
+  userBadge: { backgroundColor: '#F1F5F9' },
   userBadgeText: { color: '#475569' },
-  activeBadge:    { backgroundColor: '#ECFDF5' },
+  activeBadge: { backgroundColor: '#ECFDF5' },
   activeBadgeText: { color: '#047857' },
-  inactiveBadge:   { backgroundColor: '#FEF2F2' },
+  inactiveBadge: { backgroundColor: '#FEF2F2' },
   inactiveBadgeText: { color: '#DC2626' },
-  detail:   { fontSize: rf(12.5), color: '#64748B', marginTop: hp(0.35) },
-  divider:  { height: StyleSheet.hairlineWidth, backgroundColor: '#E2E8F0', marginVertical: hp(1) },
+  detail: { fontSize: rf(12.5), color: '#64748B', marginTop: hp(0.35) },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#E2E8F0', marginVertical: hp(1) },
   cardActions: { flexDirection: 'row', justifyContent: 'space-between' },
-  actionBtn:   { paddingVertical: hp(0.5), paddingHorizontal: wp(1) },
-  editText:    { fontSize: rf(12.5), color: '#2563EB', fontWeight: '700' },
-  deleteText:  { fontSize: rf(12.5), color: '#DC2626', fontWeight: '700' },
+  actionBtn: { paddingVertical: hp(0.5), paddingHorizontal: wp(1) },
+  editText: { fontSize: rf(12.5), color: '#2563EB', fontWeight: '700' },
+  deleteText: { fontSize: rf(12.5), color: '#DC2626', fontWeight: '700' },
 
-  empty:     { backgroundColor: '#fff', borderRadius: rs(10), padding: wp(8), alignItems: 'center', marginTop: hp(2.5) },
+  empty: { backgroundColor: '#fff', borderRadius: rs(10), padding: wp(8), alignItems: 'center', marginTop: hp(2.5) },
   emptyText: { color: '#64748B', fontSize: rf(13) },
 
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
@@ -307,7 +309,7 @@ const s = StyleSheet.create({
     paddingTop: hp(2.5),
     paddingBottom: hp(2),
   },
-  modalTitle:  { fontSize: rf(16), fontWeight: '700', color: '#1E293B', marginBottom: hp(2), textAlign: 'center' },
+  modalTitle: { fontSize: rf(16), fontWeight: '700', color: '#1E293B', marginBottom: hp(2), textAlign: 'center' },
   modalScroll: { paddingBottom: hp(1.5) },
   label: { fontSize: rf(12.5), fontWeight: '600', color: '#374151', marginBottom: hp(0.8), marginTop: hp(0.5) },
   input: {
@@ -321,17 +323,17 @@ const s = StyleSheet.create({
     marginBottom: hp(1.5),
   },
   inputDisabled: { backgroundColor: '#F1F5F9', color: '#94A3B8' },
-  btnGroup:  { flexDirection: 'row', gap: wp(2.7), marginBottom: hp(1.5) },
-  groupBtn:  { flex: 1, borderWidth: 1, borderColor: '#D1D5DB', borderRadius: rs(8), paddingVertical: hp(1.3), alignItems: 'center' },
-  groupBtnActive:     { backgroundColor: '#0D2B6E', borderColor: 'transparent' },
-  groupBtnText:       { fontSize: rf(13), fontWeight: '600', color: '#64748B' },
+  btnGroup: { flexDirection: 'row', gap: wp(2.7), marginBottom: hp(1.5) },
+  groupBtn: { flex: 1, borderWidth: 1, borderColor: '#D1D5DB', borderRadius: rs(8), paddingVertical: hp(1.3), alignItems: 'center' },
+  groupBtnActive: { backgroundColor: '#0D2B6E', borderColor: 'transparent' },
+  groupBtnText: { fontSize: rf(13), fontWeight: '600', color: '#64748B' },
   groupBtnTextActive: { color: '#fff' },
 
   modalActions: { flexDirection: 'row', justifyContent: 'space-between', gap: wp(2.7), borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E2E8F0', paddingTop: hp(1.8), marginTop: hp(0.5) },
-  modalBtn:    { flex: 1, paddingVertical: hp(1.6), borderRadius: rs(8), alignItems: 'center' },
-  cancelBtn:   { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#D1D5DB' },
+  modalBtn: { flex: 1, paddingVertical: hp(1.6), borderRadius: rs(8), alignItems: 'center' },
+  cancelBtn: { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#D1D5DB' },
   cancelBtnText: { color: '#64748B', fontWeight: '700', fontSize: rf(13) },
-  saveBtn:     { backgroundColor: '#0D2B6E' },
+  saveBtn: { backgroundColor: '#0D2B6E' },
   saveBtnText: { color: '#fff', fontWeight: '700', fontSize: rf(13) },
 });
 

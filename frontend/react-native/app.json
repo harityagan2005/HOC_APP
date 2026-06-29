@@ -5,6 +5,9 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "sdkVersion": "54.0.0",
-    "userInterfaceStyle": "light"
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "com.hocmobile.app"
+    }
   }
 }

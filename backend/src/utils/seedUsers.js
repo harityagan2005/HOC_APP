@@ -4,11 +4,7 @@
  *   node backend/src/utils/seedUsers.js
  */
 const bcrypt = require('bcryptjs');
-const mysql = require('mysql2/promise');
-const dotenv = require('dotenv');
-const path = require('path');
-
-dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') });
+const pool = require('../config/database');
 
 const USERS = [
   { employee_id: 'EMP001', name: 'Admin User', email: 'admin@hocapp.com', phone: '9999999999', password: 'admin123', role: 'Admin' },
@@ -16,25 +12,26 @@ const USERS = [
 ];
 
 async function seed() {
-  const pool = mysql.createPool({
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 3306,
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'hoc_app',
-  });
-
   const connection = await pool.getConnection();
   try {
     for (const u of USERS) {
       const hash = await bcrypt.hash(u.password, 10);
-      // Upsert: update password if user exists, insert otherwise
-      await connection.query(
-        `INSERT INTO users (employee_id, name, email, phone, password, role)
-         VALUES (?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE password = VALUES(password)`,
-        [u.employee_id, u.name, u.email, u.phone, hash, u.role]
-      );
+      
+      // SQL Server compatible check-then-upsert
+      const checkQuery = `SELECT id FROM users WHERE employee_id = ?`;
+      const [existing] = await connection.query(checkQuery, [u.employee_id]);
+      
+      if (existing.length > 0) {
+        await connection.query(
+          `UPDATE users SET password = ? WHERE employee_id = ?`,
+          [hash, u.employee_id]
+        );
+      } else {
+        await connection.query(
+          `INSERT INTO users (employee_id, name, email, phone, password, role) VALUES (?, ?, ?, ?, ?, ?)`,
+          [u.employee_id, u.name, u.email, u.phone, hash, u.role]
+        );
+      }
       console.log(`✅ Seeded ${u.employee_id} (${u.role}) with password: ${u.password}`);
     }
     console.log('\n🎉 All users seeded successfully!');
