@@ -164,8 +164,8 @@ GO
    User  password: user123  (bcrypt hash)
    ============================================================ */
 INSERT INTO users (employee_id, name, email, phone, password, role) VALUES
-('EMP001', 'Admin User',   'admin@hocapp.com', '9999999999', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Admin'),
-('EMP002', 'Regular User',  'user@hocapp.com', '9999999998', '$2a$10$YourHashHereForUser123PlaceholderValueXyz1234567890ab', 'User');
+('EMP001', 'Admin User',   'admin@hocapp.com', '9999999999', '$2a$10$4gmHZYWU02k7snDF6BuhruqYzdPg/U8vBHYxqJn1p1k29YfXY9xyO', 'Admin'),
+('EMP002', 'Regular User',  'user@hocapp.com', '9999999998', '$2a$10$jbePqNPIgcUpT1VngadTtOhhz2jRr4x0kwIY4uNpjyVNZREmFTTpG', 'User');
 GO
 
 INSERT INTO variant_master (variant_type, variant_name, variant_code) VALUES
