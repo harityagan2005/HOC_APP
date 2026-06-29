@@ -39,8 +39,8 @@ const pool = {
         const namedQuery = queryStr.replace(/\?/g, () => {
           i++;
           const val = params[i - 1];
-          request.input(`p${i}`, val === undefined ? null : val);
-          return `@p${i}`;
+          request.input(`param_${i}`, val === undefined ? null : val);
+          return `@param_${i}`;
         });
 
         const result = await request.query(namedQuery);
