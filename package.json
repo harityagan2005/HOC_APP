@@ -4,8 +4,8 @@
   "description": "HOC (Hazard Observation Card) App Backend with Express.js and MySQL",
   "main": "src/app.js",
   "scripts": {
-    "start": "node src/app.js",
-    "dev": "nodemon src/app.js",
+    "start": "node backend/src/app.js",
+    "dev": "nodemon backend/src/app.js",
     "test": "jest"
   },
   "keywords": [
