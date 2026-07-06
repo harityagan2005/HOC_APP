@@ -15,7 +15,7 @@ import {
   PixelRatio,
 } from 'react-native';
 import { getUserDashboard } from '../services/reportService';
-import { AuthContext } from '../../App';
+import { AuthContext } from '../context/AuthContext';
 
 // ─── Responsive Utilities ────────────────────────────────────────────
 const { width: W, height: H } = Dimensions.get('window');
@@ -199,14 +199,13 @@ const DashboardScreen = ({ navigation }) => {
   const comingSoon = (name) => { closeMenu(); Alert.alert(name, 'This section is coming soon.'); };
 
   const stats = dashboardData?.statistics || {
-    total_reports: 0, critical_count: 0, high_count: 0, medium_count: 0, low_count: 0,
+    total_reports: 0, high_count: 0, medium_count: 0, low_count: 0,
   };
   const total     = stats.total_reports || 0;
-  const openCount = (stats.critical_count || 0) + (stats.high_count || 0);
+  const openCount = stats.high_count || 0;
 
   const getSeverityColor = (sev) => {
     switch (sev?.toLowerCase()) {
-      case 'critical': return '#DC2626';
       case 'high':     return '#EA580C';
       case 'medium':   return '#D97706';
       case 'low':      return '#16A34A';
@@ -334,8 +333,6 @@ const DashboardScreen = ({ navigation }) => {
               <Text style={s.secText}>SEVERITY BREAKDOWN</Text>
             </View>
             <View style={s.card}>
-              <SeverityRow label="Critical" count={stats.critical_count || 0} color="#DC2626"
-                onPress={() => navigation.navigate('ReportsList', { mode: 'all', initialSeverity: 'Critical' })} />
               <SeverityRow label="High"     count={stats.high_count     || 0} color="#EA580C"
                 onPress={() => navigation.navigate('ReportsList', { mode: 'all', initialSeverity: 'High' })} />
               <SeverityRow label="Medium"   count={stats.medium_count   || 0} color="#D97706"

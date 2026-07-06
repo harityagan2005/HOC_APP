@@ -61,7 +61,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 // Create variant (admin only)
 router.post('/', authMiddleware, adminOnly, async (req, res) => {
   try {
-    const { variant_type, variant_name, variant_code, description } = req.body;
+    const { variant_type, variant_name, variant_code, description, email, hod } = req.body;
 
     if (!variant_type || !variant_name) {
       return sendError(res, 'Variant type and name are required', 400);
@@ -71,8 +71,8 @@ router.post('/', authMiddleware, adminOnly, async (req, res) => {
 
     try {
       const [result] = await connection.query(
-        'INSERT INTO variant_master (variant_type, variant_name, variant_code, description) OUTPUT INSERTED.id VALUES (?, ?, ?, ?)',
-        [variant_type, variant_name, variant_code || null, description || null]
+        'INSERT INTO variant_master (variant_type, variant_name, variant_code, description, email, hod) OUTPUT INSERTED.id VALUES (?, ?, ?, ?, ?, ?)',
+        [variant_type, variant_name, variant_code || null, description || null, email || null, hod || null]
       );
 
       sendSuccess(
@@ -94,7 +94,7 @@ router.post('/', authMiddleware, adminOnly, async (req, res) => {
 router.put('/:id', authMiddleware, adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
-    const { variant_type, variant_name, variant_code, description } = req.body;
+    const { variant_type, variant_name, variant_code, description, email, hod } = req.body;
 
     const connection = await pool.getConnection();
 
@@ -117,6 +117,14 @@ router.put('/:id', authMiddleware, adminOnly, async (req, res) => {
       if (description !== undefined) {
         updates.push('description = ?');
         values.push(description);
+      }
+      if (email !== undefined) {
+        updates.push('email = ?');
+        values.push(email);
+      }
+      if (hod !== undefined) {
+        updates.push('hod = ?');
+        values.push(hod);
       }
 
       if (updates.length === 0) {

@@ -7,7 +7,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { createReport, updateReport, uploadImage } from '../services/reportService';
 import { getVariants } from '../services/variantService';
-import { AuthContext } from '../../App';
+import { AuthContext } from '../context/AuthContext';
 
 const { width: W, height: H } = Dimensions.get('window');
 const BASE_W = 375;
@@ -201,18 +201,12 @@ const ReportCreationScreen = ({ navigation, route }) => {
   const [operAct, setOperAct]               = useState(editReport?.oper_act || '');
   const [observations, setObservations]     = useState(editReport?.observations || '');
   const [correctiveActions, setCorrectiveActions] = useState(editReport?.corrective_actions || '');
-  const [accountablePerson, setAccountablePerson]           = useState(editReport?.accountable_person || '');
-  const [accountablePersonEmail, setAccountablePersonEmail] = useState(editReport?.accountable_person_email || '');
   const [responsiblePerson, setResponsiblePerson] = useState(editReport?.responsible_person || '');
   const [hod, setHod]                       = useState(editReport?.hod || '');
   const [imageUrl, setImageUrl]             = useState(editReport?.image_url || '');
   const [stopJob, setStopJob]               = useState(editReport?.stop_job || 'No');
-  const [endDate, setEndDate]               = useState(
-    editReport?.end_date ? String(editReport.end_date).split('T')[0] : ''
-  );
   const [remarks, setRemarks]               = useState(editReport?.remarks || '');
   const [severity, setSeverity]             = useState(editReport?.severity || 'Low');
-  const [fyYear, setFyYear]                 = useState(editReport?.fy_year || '');
 
   const [imageUri, setImageUri]             = useState(editReport?.image_url ? null : null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -264,10 +258,6 @@ const ReportCreationScreen = ({ navigation, route }) => {
 
   useEffect(() => {
     fetchAllVariants();
-    if (!isEdit) {
-      const y = new Date().getFullYear();
-      setFyYear(`${y}-${(y + 1).toString().slice(-2)}`);
-    }
   }, []);
 
   const openSelectorModal = (type) => {
@@ -283,6 +273,9 @@ const ReportCreationScreen = ({ navigation, route }) => {
       category: setSelectedCategory, department: setSelectedDepartment,
     };
     setters[modalType]?.(item);
+    if (modalType === 'department') {
+      setHod(item.hod || '');
+    }
     setModalVisible(false);
   };
 
@@ -340,11 +333,9 @@ const ReportCreationScreen = ({ navigation, route }) => {
       area_id: selectedArea.id, status_id: selectedStatus.id, category_id: selectedCategory.id,
       action_department_id: selectedDepartment?.id || null, oper_act: operAct || null,
       observations, corrective_actions: correctiveActions || null,
-      accountable_person: accountablePerson || null,
-      accountable_person_email: accountablePersonEmail || null,
       responsible_person: responsiblePerson || null,
       hod: hod || null, image_url: imageUrl || null, stop_job: stopJob,
-      end_date: endDate || null, remarks: remarks || null, severity, fy_year: fyYear || null,
+      remarks: remarks || null, severity,
     };
     try {
       const response = isEdit
@@ -425,6 +416,11 @@ const ReportCreationScreen = ({ navigation, route }) => {
             <Selector label="Hazard Category *"  value={selectedCategory}   placeholder="Select Hazard Category"       onPress={() => openSelectorModal('category')}   />
             <Selector label="Status *"           value={selectedStatus}     placeholder="Select Status"                onPress={() => openSelectorModal('status')}     />
             <Selector label="Action Department"  value={selectedDepartment} placeholder="Select Department (Optional)" onPress={() => openSelectorModal('department')} />
+            {selectedDepartment?.email ? (
+              <View style={s.emailHint}>
+                <Text style={s.emailHintText}>✉️  {selectedDepartment.variant_name} will be automatically emailed at {selectedDepartment.email} when this report is submitted.</Text>
+              </View>
+            ) : null}
           </View>
 
           {/* Card 3: Findings */}
@@ -433,8 +429,8 @@ const ReportCreationScreen = ({ navigation, route }) => {
 
             <Text style={s.label}>Severity Level *</Text>
             <View style={s.btnGroup}>
-              {['Low', 'Medium', 'High', 'Critical'].map((level) => {
-                const activeColor = { Critical: '#DC2626', High: '#EA580C', Medium: '#D97706', Low: '#0D9488' }[level];
+              {['Low', 'Medium', 'High'].map((level) => {
+                const activeColor = { High: '#EA580C', Medium: '#D97706', Low: '#0D9488' }[level];
                 return (
                   <TouchableOpacity
                     key={level}
@@ -474,36 +470,11 @@ const ReportCreationScreen = ({ navigation, route }) => {
           <View style={s.card}>
             <Text style={s.cardTitle}>Responsibility {'&'} Closure</Text>
 
-            <Text style={s.label}>Accountable Person</Text>
-            <TextInput style={s.input} placeholder="Name of accountable person" placeholderTextColor="#9CA3AF" value={accountablePerson} onChangeText={setAccountablePerson} />
-
-            <Text style={s.label}>Accountable Person Email</Text>
-            <TextInput
-              style={s.input}
-              placeholder="email@example.com"
-              placeholderTextColor="#9CA3AF"
-              value={accountablePersonEmail}
-              onChangeText={setAccountablePersonEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            {accountablePersonEmail ? (
-              <View style={s.emailHint}>
-                <Text style={s.emailHintText}>✉️  An assignment email will be sent to this address when the report is submitted.</Text>
-              </View>
-            ) : null}
-
             <Text style={s.label}>Responsible Person</Text>
             <TextInput style={s.input} placeholder="Name of responsible person" placeholderTextColor="#9CA3AF" value={responsiblePerson} onChangeText={setResponsiblePerson} />
 
             <Text style={s.label}>HOD (Head of Department)</Text>
             <TextInput style={s.input} placeholder="Name of HOD" placeholderTextColor="#9CA3AF" value={hod} onChangeText={setHod} />
-
-            <Text style={s.label}>End Date (YYYY-MM-DD)</Text>
-            <TextInput style={s.input} placeholder="e.g. 2026-06-30" placeholderTextColor="#9CA3AF" value={endDate} onChangeText={setEndDate} />
-
-            <Text style={s.label}>Financial Year</Text>
-            <TextInput style={s.input} placeholder="e.g. 2026-2027" placeholderTextColor="#9CA3AF" value={fyYear} onChangeText={setFyYear} />
 
             <Text style={s.label}>Observation Photo</Text>
             <View style={s.photoRow}>

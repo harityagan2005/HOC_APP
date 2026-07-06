@@ -1,9 +1,10 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 
+import { AuthContext } from './src/context/AuthContext';
 import LoginScreen              from './src/screens/LoginScreen';
 import OTPVerificationScreen    from './src/screens/OTPVerificationScreen';
 import DashboardScreen          from './src/screens/DashboardScreen';
@@ -16,7 +17,6 @@ import EmployeeMasterScreen     from './src/screens/EmployeeMasterScreen';
 import AdminProfileScreen       from './src/screens/AdminProfileScreen';
 
 const Stack = createStackNavigator();
-export const AuthContext = createContext();
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);

@@ -14,7 +14,7 @@ const wp = (p) => (W * p) / 100;
 const hp = (p) => (H * p) / 100;
 const STATUSBAR_H = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) : 0;
 
-const TABS = ['Location', 'Area', 'Status', 'Category'];
+const TABS = ['Location', 'Area', 'Status', 'Category', 'Department'];
 
 const VariantMasterScreen = ({ navigation }) => {
   const [loading, setLoading]               = useState(true);
@@ -26,6 +26,9 @@ const VariantMasterScreen = ({ navigation }) => {
   const [name, setName]                     = useState('');
   const [code, setCode]                     = useState('');
   const [description, setDescription]       = useState('');
+  const [email, setEmail]                   = useState('');
+  const [hod, setHod]                       = useState('');
+  const isDepartment = activeTab === 'Department';
 
   const fetchVariantsData = async () => {
     setLoading(true);
@@ -43,7 +46,7 @@ const VariantMasterScreen = ({ navigation }) => {
   useEffect(() => { fetchVariantsData(); }, [activeTab]);
 
   const openAddModal = () => {
-    setEditingVariant(null); setName(''); setCode(''); setDescription('');
+    setEditingVariant(null); setName(''); setCode(''); setDescription(''); setEmail(''); setHod('');
     setFormModalVisible(true);
   };
 
@@ -52,13 +55,18 @@ const VariantMasterScreen = ({ navigation }) => {
     setName(item.variant_name);
     setCode(item.variant_code || '');
     setDescription(item.description || '');
+    setEmail(item.email || '');
+    setHod(item.hod || '');
     setFormModalVisible(true);
   };
 
   const handleSubmit = async () => {
     if (!name.trim()) { Alert.alert('Validation Error', 'Variant name is required'); return; }
     setSubmitting(true);
-    const data = { variant_type: activeTab, variant_name: name, variant_code: code || null, description: description || null };
+    const data = {
+      variant_type: activeTab, variant_name: name, variant_code: code || null, description: description || null,
+      ...(isDepartment ? { email: email || null, hod: hod || null } : {}),
+    };
     try {
       const fn = editingVariant ? updateVariant(editingVariant.id, data) : createVariant(data);
       const response = await fn;
@@ -135,6 +143,8 @@ const VariantMasterScreen = ({ navigation }) => {
                   </View>
                 ) : null}
                 {item.description ? <Text style={s.rowDesc} numberOfLines={2}>{item.description}</Text> : null}
+                {item.hod ? <Text style={s.rowDesc}>HOD: {item.hod}</Text> : null}
+                {item.email ? <Text style={s.rowDesc}>✉️ {item.email}</Text> : null}
               </View>
               <View style={s.rowActions}>
                 <TouchableOpacity onPress={() => openEditModal(item)} style={s.actionBtn}>
@@ -179,6 +189,30 @@ const VariantMasterScreen = ({ navigation }) => {
               value={description}
               onChangeText={setDescription}
             />
+
+            {isDepartment && (
+              <>
+                <Text style={s.label}>Head of Department (HOD)</Text>
+                <TextInput
+                  style={s.input}
+                  placeholder="Name of HOD"
+                  placeholderTextColor="#9CA3AF"
+                  value={hod}
+                  onChangeText={setHod}
+                />
+
+                <Text style={s.label}>Department Email</Text>
+                <TextInput
+                  style={s.input}
+                  placeholder="department@example.com"
+                  placeholderTextColor="#9CA3AF"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </>
+            )}
 
             <View style={s.modalActions}>
               <TouchableOpacity style={[s.modalBtn, s.cancelBtn]} onPress={() => setFormModalVisible(false)} disabled={submitting}>

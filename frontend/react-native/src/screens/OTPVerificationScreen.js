@@ -5,7 +5,7 @@ import {
   Dimensions, PixelRatio,
 } from 'react-native';
 import { verifyOTP, requestOTP } from '../services/authService';
-import { AuthContext } from '../../App';
+import { AuthContext } from '../context/AuthContext';
 
 const { width: W, height: H } = Dimensions.get('window');
 const BASE_W = 375;

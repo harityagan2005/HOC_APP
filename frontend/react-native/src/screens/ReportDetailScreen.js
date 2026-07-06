@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { getReportDetail, deleteReport, updateReport } from '../services/reportService';
 import { getVariants } from '../services/variantService';
-import { AuthContext } from '../../App';
+import { AuthContext } from '../context/AuthContext';
 
 const { width: W, height: H } = Dimensions.get('window');
 const BASE_W = 375;
@@ -15,7 +15,7 @@ const wp = (p) => (W * p) / 100;
 const hp = (p) => (H * p) / 100;
 const STATUSBAR_H = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) : 0;
 
-const SEV_COLOR = { Critical: '#DC2626', High: '#EA580C', Medium: '#D97706', Low: '#16A34A' };
+const SEV_COLOR = { High: '#EA580C', Medium: '#D97706', Low: '#16A34A' };
 const STATUS_OPTIONS = ['Open', 'In Progress', 'Closed', 'Resolved'];
 
 const Field = ({ label, value }) => {
@@ -230,7 +230,6 @@ const ReportDetailScreen = ({ navigation, route }) => {
           <Field label="Observation Date" value={formatDate(report.observation_date)} />
           <Field label="Reported By"     value={report.reporter_name ? `${report.reporter_name} (${report.reporter_emp_id})` : null} />
           <Field label="Status"          value={report.status_name || '—'} />
-          <Field label="FY Year"         value={report.fy_year} />
           <Field label="Created"         value={formatDate(report.created_date)} />
         </View>
 
@@ -256,10 +255,8 @@ const ReportDetailScreen = ({ navigation, route }) => {
         {/* Responsibility */}
         <View style={s.card}>
           <Text style={s.cardTitle}>Responsibility {'&'} Closure</Text>
-          <Field label="Accountable Person" value={report.accountable_person} />
           <Field label="Responsible Person" value={report.responsible_person} />
           <Field label="HOD"               value={report.hod} />
-          <Field label="End Date"          value={formatDate(report.end_date)} />
           <Field label="Remarks"           value={report.remarks} />
         </View>
 

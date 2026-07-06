@@ -13,7 +13,7 @@ const wp = (p) => (W * p) / 100;
 const hp = (p) => (H * p) / 100;
 const STATUSBAR_H = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) : 0;
 
-const SEV_COLOR = { Critical: '#DC2626', High: '#EA580C', Medium: '#D97706', Low: '#16A34A' };
+const SEV_COLOR = { High: '#EA580C', Medium: '#D97706', Low: '#16A34A' };
 
 const StatCard = ({ label, value, color, icon }) => (
   <View style={[st.statCard, { borderTopColor: color, borderTopWidth: rs(3) }]}>
@@ -131,10 +131,7 @@ const ExecutiveDashboardScreen = ({ navigation }) => {
               <Text style={s.sectionTitle}>SEVERITY BREAKDOWN</Text>
             </View>
             <View style={s.statRow}>
-              <StatCard label="Critical" value={stats.critical_count} color="#DC2626" icon="🔴" />
               <StatCard label="High"     value={stats.high_count}     color="#EA580C" icon="🟠" />
-            </View>
-            <View style={[s.statRow, { marginTop: hp(1.2) }]}>
               <StatCard label="Medium"   value={stats.medium_count}   color="#D97706" icon="🟡" />
               <StatCard label="Low"      value={stats.low_count}      color="#16A34A" icon="🟢" />
             </View>
@@ -185,11 +182,6 @@ const ExecutiveDashboardScreen = ({ navigation }) => {
                       <Text style={s.reporterCount}>{rep.report_count}</Text>
                       <Text style={s.reporterCountLabel}>reports</Text>
                     </View>
-                    {rep.critical_count > 0 && (
-                      <View style={s.criticalTag}>
-                        <Text style={s.criticalTagText}>{rep.critical_count} 🔴</Text>
-                      </View>
-                    )}
                   </View>
                 ))}
               </View>
@@ -327,8 +319,6 @@ const s = StyleSheet.create({
   reporterStats: { alignItems: 'center', marginRight: wp(2) },
   reporterCount: { fontSize: rf(18), fontWeight: '900', color: '#0D2B6E', includeFontPadding: false },
   reporterCountLabel: { fontSize: rf(9), color: '#94A3B8', fontWeight: '600' },
-  criticalTag:  { backgroundColor: '#FEE2E2', paddingHorizontal: wp(1.6), paddingVertical: hp(0.4), borderRadius: rs(6) },
-  criticalTagText: { fontSize: rf(10.5), fontWeight: '700', color: '#DC2626' },
 
   recentCard: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: rs(8), marginBottom: hp(1), overflow: 'hidden', elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: rs(2) },
   recentAccent: { width: rs(4) },

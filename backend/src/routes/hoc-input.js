@@ -142,8 +142,8 @@ router.post('/', authMiddleware, async (req, res) => {
         job_req_for, company, observer_name, observation_date,
         location_id, area_id, status_id, category_id, action_department_id,
         oper_act, observations, corrective_actions,
-        accountable_person, accountable_person_email, responsible_person, hod,
-        image_url, stop_job, end_date, remarks, severity, fy_year
+        responsible_person, hod,
+        image_url, stop_job, remarks, severity
       } = req.body;
 
       const [result] = await connection.query(
@@ -151,33 +151,40 @@ router.post('/', authMiddleware, async (req, res) => {
           job_req_for, company, observer_name, observation_date,
           location_id, area_id, status_id, category_id, action_department_id,
           oper_act, observations, corrective_actions,
-          accountable_person, accountable_person_email, responsible_person, hod,
-          image_url, stop_job, end_date, remarks, severity, fy_year, reported_by
-        ) OUTPUT INSERTED.job_id VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          responsible_person, hod,
+          image_url, stop_job, remarks, severity, reported_by
+        ) OUTPUT INSERTED.job_id VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           job_req_for, company, observer_name,
           observation_date || new Date().toISOString().split('T')[0],
           location_id, area_id, status_id, category_id, action_department_id,
           oper_act, observations, corrective_actions,
-          accountable_person, accountable_person_email || null, responsible_person, hod,
-          image_url, stop_job || 'No', end_date, remarks, severity || 'Low', fy_year, req.user.id
+          responsible_person, hod,
+          image_url, stop_job || 'No', remarks, severity || 'Low', req.user.id
         ]
       );
 
       const reportId = result.insertId;
       sendSuccess(res, { job_id: reportId }, 'Report created successfully', 201);
 
-      // Send email non-blocking — after response is already sent
-      if (accountable_person_email) {
-        sendReportAssignmentEmail({
-          reportId,
-          report: {
-            job_req_for, company, observer_name, observation_date,
-            observations, corrective_actions, accountable_person,
-            accountable_person_email, responsible_person, severity,
-            stop_job: stop_job || 'No', end_date, remarks, fy_year,
-          },
-        }).catch(err => console.error('Email send error:', err.message));
+      // Send email non-blocking — after response is already sent.
+      // Automatically notify whichever department the report was assigned to.
+      if (action_department_id) {
+        connection.query(
+          'SELECT variant_name, email FROM variant_master WHERE id = ?',
+          [action_department_id]
+        ).then(([[dept]]) => {
+          if (!dept?.email) return;
+          return sendReportAssignmentEmail({
+            reportId,
+            department: { name: dept.variant_name, email: dept.email },
+            report: {
+              job_req_for, company, observer_name, observation_date,
+              observations, corrective_actions, responsible_person, severity,
+              stop_job: stop_job || 'No', remarks,
+            },
+          });
+        }).catch(err => console.error('Department email error:', err.message));
       }
     } finally {
       connection.release();
@@ -207,9 +214,9 @@ router.put('/:id', authMiddleware, async (req, res) => {
       const allowed = [
         'job_req_for', 'company', 'observer_name', 'location_id', 'area_id',
         'status_id', 'category_id', 'action_department_id', 'oper_act',
-        'observations', 'corrective_actions', 'accountable_person',
-        'accountable_person_email', 'responsible_person', 'hod', 'image_url',
-        'stop_job', 'end_date', 'remarks', 'severity', 'fy_year'
+        'observations', 'corrective_actions',
+        'responsible_person', 'hod', 'image_url',
+        'stop_job', 'remarks', 'severity'
       ];
       const updates = [];
       const values  = [];

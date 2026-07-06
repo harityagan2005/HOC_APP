@@ -3,7 +3,7 @@ import {
   StyleSheet, View, Text, TouchableOpacity, ScrollView,
   Alert, Dimensions, PixelRatio, Platform, StatusBar,
 } from 'react-native';
-import { AuthContext } from '../../App';
+import { AuthContext } from '../context/AuthContext';
 
 const { width: W, height: H } = Dimensions.get('window');
 const BASE_W = 375;

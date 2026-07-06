@@ -17,6 +17,9 @@ yarn-error.log*
 build/
 dist/
 
+# User-uploaded runtime data
+backend/uploads/
+
 # Environment
 .env
 .env.*

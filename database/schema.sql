@@ -61,6 +61,11 @@ CREATE TABLE variant_master (
     variant_name VARCHAR(150) NOT NULL,
     variant_code VARCHAR(50),
     description  VARCHAR(MAX),
+    -- Only meaningful for variant_type = 'Department': the address that
+    -- automated report-assignment emails are sent to, and the department's
+    -- Head of Department (auto-filled into the report form on selection).
+    email        VARCHAR(255),
+    hod          VARCHAR(150),
     created_at   DATETIME2    NOT NULL DEFAULT SYSDATETIME(),
     updated_at   DATETIME2    NOT NULL DEFAULT SYSDATETIME(),
     CONSTRAINT unique_variant UNIQUE (variant_type, variant_name)
@@ -88,19 +93,16 @@ CREATE TABLE hoc_input (
     observations         VARCHAR(MAX) NOT NULL,
     corrective_actions   VARCHAR(MAX),
 
-    accountable_person   VARCHAR(150),
     responsible_person   VARCHAR(150),
     hod                  VARCHAR(150),
 
     image_url            VARCHAR(255),
     stop_job             VARCHAR(3) NOT NULL DEFAULT 'No'
                              CONSTRAINT chk_hoc_stop_job CHECK (stop_job IN ('Yes', 'No')),
-    end_date             DATE,
     remarks              VARCHAR(MAX),
 
     severity             VARCHAR(10) NOT NULL DEFAULT 'Low'
-                             CONSTRAINT chk_hoc_severity CHECK (severity IN ('Low', 'Medium', 'High', 'Critical')),
-    fy_year              VARCHAR(20),
+                             CONSTRAINT chk_hoc_severity CHECK (severity IN ('Low', 'Medium', 'High')),
 
     reported_by          INT NOT NULL,
     created_date         DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
@@ -164,17 +166,92 @@ GO
    User  password: user123  (bcrypt hash)
    ============================================================ */
 INSERT INTO users (employee_id, name, email, phone, password, role) VALUES
-('EMP001', 'Admin User',   'admin@hocapp.com', '9999999999', '$2a$10$4gmHZYWU02k7snDF6BuhruqYzdPg/U8vBHYxqJn1p1k29YfXY9xyO', 'Admin'),
-('EMP002', 'Regular User',  'user@hocapp.com', '9999999998', '$2a$10$jbePqNPIgcUpT1VngadTtOhhz2jRr4x0kwIY4uNpjyVNZREmFTTpG', 'User');
+('EMP001', 'Admin User',      'admin@hocapp.com',      '9999999999', '$2a$10$4gmHZYWU02k7snDF6BuhruqYzdPg/U8vBHYxqJn1p1k29YfXY9xyO', 'Admin'),
+('EMP002', 'Regular User',    'user@hocapp.com',       '9999999998', '$2a$10$jbePqNPIgcUpT1VngadTtOhhz2jRr4x0kwIY4uNpjyVNZREmFTTpG', 'User'),
+('EMP003', 'Site Supervisor', 'supervisor@hocapp.com', '9999999997', '$2a$10$jbePqNPIgcUpT1VngadTtOhhz2jRr4x0kwIY4uNpjyVNZREmFTTpG', 'User');
 GO
 
-INSERT INTO variant_master (variant_type, variant_name, variant_code) VALUES
-('Location', 'Floor 1',       'F1'),
-('Location', 'Floor 2',       'F2'),
-('Area',     'Production',    'PROD'),
-('Area',     'Packaging',     'PKG'),
-('Status',   'Open',          'OPEN'),
-('Status',   'Closed',        'CLOSED'),
-('Category', 'Safety Hazard', 'SH'),
-('Category', 'Environmental', 'ENV');
+INSERT INTO variant_master (variant_type, variant_name, variant_code, email, hod) VALUES
+('Location', 'Floor 1',            'F1',    NULL, NULL),
+('Location', 'Floor 2',            'F2',    NULL, NULL),
+('Location', 'Plant Yard',         'YARD',  NULL, NULL),
+('Area',     'Production',         'PROD',  NULL, NULL),
+('Area',     'Packaging',          'PKG',   NULL, NULL),
+('Area',     'Warehouse',          'WH',    NULL, NULL),
+('Status',   'Open',               'OPEN',       NULL, NULL),
+('Status',   'In Progress',        'INPROG',     NULL, NULL),
+('Status',   'Resolved',           'RESOLVED',   NULL, NULL),
+('Status',   'Closed',             'CLOSED',     NULL, NULL),
+('Category', 'Safety Hazard',      'SH',    NULL, NULL),
+('Category', 'Environmental',      'ENV',   NULL, NULL),
+('Category', 'Equipment Fault',    'EQF',   NULL, NULL),
+('Department', 'Safety Department',      'DEPT-SAFETY', 'safety.dept@hocapp.com',      'Rajesh Kumar'),
+('Department', 'Maintenance Department', 'DEPT-MAINT',  'maintenance.dept@hocapp.com', 'Suresh Iyer'),
+('Department', 'Operations Department',  'DEPT-OPS',    'operations.dept@hocapp.com',  'Priya Nair');
+GO
+
+/* Demo hazard observation reports so dashboards/lists have data to show */
+INSERT INTO hoc_input (
+    job_req_for, company, observer_name, observation_date,
+    location_id, area_id, status_id, category_id, action_department_id,
+    oper_act, observations, corrective_actions,
+    responsible_person, hod, stop_job, severity, reported_by
+)
+SELECT 'Scaffolding Inspection', 'Reliance Contractors Ltd.', 'Admin User', '2026-06-15',
+       loc.id, area.id, stat.id, cat.id, dept.id,
+       'Erecting scaffolding for maintenance work',
+       'Scaffolding erected without base plates on uneven ground, risk of collapse.',
+       'Base plates installed and scaffold re-inspected before use.',
+       'Site Supervisor', 'Admin User', 'Yes', 'High', u.id
+FROM variant_master loc, variant_master area, variant_master stat, variant_master cat, variant_master dept, users u
+WHERE loc.variant_name = 'Floor 1' AND area.variant_name = 'Production' AND stat.variant_name = 'Closed'
+  AND cat.variant_name = 'Safety Hazard' AND dept.variant_name = 'Safety Department' AND u.employee_id = 'EMP001';
+
+INSERT INTO hoc_input (
+    job_req_for, company, observer_name, observation_date,
+    location_id, area_id, status_id, category_id, action_department_id,
+    oper_act, observations, corrective_actions,
+    responsible_person, hod, stop_job, severity, reported_by
+)
+SELECT 'Conveyor Belt Maintenance', 'Reliance Industries', 'Regular User', '2026-06-20',
+       loc.id, area.id, stat.id, cat.id, dept.id,
+       'Routine conveyor belt servicing',
+       'Conveyor belt guard missing, exposing moving parts near walkway.',
+       NULL,
+       'Site Supervisor', 'Admin User', 'No', 'High', u.id
+FROM variant_master loc, variant_master area, variant_master stat, variant_master cat, variant_master dept, users u
+WHERE loc.variant_name = 'Floor 2' AND area.variant_name = 'Warehouse' AND stat.variant_name = 'In Progress'
+  AND cat.variant_name = 'Equipment Fault' AND dept.variant_name = 'Maintenance Department' AND u.employee_id = 'EMP002';
+
+INSERT INTO hoc_input (
+    job_req_for, company, observer_name, observation_date,
+    location_id, area_id, status_id, category_id, action_department_id,
+    oper_act, observations, corrective_actions,
+    responsible_person, hod, stop_job, severity, reported_by
+)
+SELECT 'Waste Disposal Check', 'Reliance Industries', 'Site Supervisor', '2026-06-25',
+       loc.id, area.id, stat.id, cat.id, dept.id,
+       'Routine waste yard walkthrough',
+       'Chemical waste drums stored without secondary containment near drainage.',
+       'Drums moved to designated containment area same day.',
+       'Regular User', 'Admin User', 'No', 'Medium', u.id
+FROM variant_master loc, variant_master area, variant_master stat, variant_master cat, variant_master dept, users u
+WHERE loc.variant_name = 'Plant Yard' AND area.variant_name = 'Packaging' AND stat.variant_name = 'Resolved'
+  AND cat.variant_name = 'Environmental' AND dept.variant_name = 'Operations Department' AND u.employee_id = 'EMP003';
+
+INSERT INTO hoc_input (
+    job_req_for, company, observer_name, observation_date,
+    location_id, area_id, status_id, category_id, action_department_id,
+    oper_act, observations, corrective_actions,
+    responsible_person, hod, stop_job, severity, reported_by
+)
+SELECT 'Housekeeping Round', 'Reliance Industries', 'Admin User', '2026-06-28',
+       loc.id, area.id, stat.id, cat.id, dept.id,
+       'General housekeeping inspection',
+       'Walkway partially blocked by empty pallets, minor trip hazard.',
+       'Pallets cleared and stacked in designated storage.',
+       'Regular User', 'Admin User', 'No', 'Low', u.id
+FROM variant_master loc, variant_master area, variant_master stat, variant_master cat, variant_master dept, users u
+WHERE loc.variant_name = 'Floor 1' AND area.variant_name = 'Warehouse' AND stat.variant_name = 'Open'
+  AND cat.variant_name = 'Safety Hazard' AND dept.variant_name = 'Safety Department' AND u.employee_id = 'EMP002';
 GO

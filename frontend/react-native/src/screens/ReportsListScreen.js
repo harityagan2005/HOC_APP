@@ -5,7 +5,7 @@ import {
   Platform, StatusBar, Modal,
 } from 'react-native';
 import { getReports, deleteReport } from '../services/reportService';
-import { AuthContext } from '../../App';
+import { AuthContext } from '../context/AuthContext';
 
 const { width: W, height: H } = Dimensions.get('window');
 const BASE_W = 375;
@@ -15,11 +15,11 @@ const wp = (p) => (W * p) / 100;
 const hp = (p) => (H * p) / 100;
 const STATUSBAR_H = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) : 0;
 
-const SEVERITY_OPTIONS = ['All', 'Critical', 'High', 'Medium', 'Low'];
+const SEVERITY_OPTIONS = ['All', 'High', 'Medium', 'Low'];
 const STATUS_OPTIONS   = ['All', 'Open', 'In Progress', 'Closed', 'Resolved'];
 const DURATION_OPTIONS = ['All Time', 'Today', 'This Week', 'This Month', 'Last Month'];
 
-const SEV_COLOR    = { Critical: '#DC2626', High: '#EA580C', Medium: '#D97706', Low: '#16A34A' };
+const SEV_COLOR    = { High: '#EA580C', Medium: '#D97706', Low: '#16A34A' };
 const STATUS_COLOR = { Open: '#2563EB', 'In Progress': '#D97706', Closed: '#16A34A', Resolved: '#7C3AED' };
 
 const getDateRange = (duration) => {

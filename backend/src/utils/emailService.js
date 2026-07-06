@@ -34,7 +34,6 @@ const verifyConnection = async () => {
 };
 
 const SEV_COLOR = {
-  Critical: '#DC2626',
   High:     '#EA580C',
   Medium:   '#D97706',
   Low:      '#16A34A',
@@ -45,13 +44,13 @@ const formatDate = (d) => {
   return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 };
 
-const sendReportAssignmentEmail = async ({ report, reportId }) => {
+const sendReportAssignmentEmail = async ({ report, reportId, department }) => {
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
     console.warn('⚠️  Email not configured in .env — skipping notification');
     return;
   }
-  if (!report.accountable_person_email) {
-    console.log('ℹ️  No accountable person email set — skipping notification');
+  if (!department?.email) {
+    console.log('ℹ️  No department email set — skipping notification');
     return;
   }
 
@@ -75,8 +74,6 @@ const sendReportAssignmentEmail = async ({ report, reportId }) => {
     ['Observations',         report.observations],
     ['Corrective Actions',   report.corrective_actions],
     ['Responsible Person',   report.responsible_person],
-    ['Target Closure Date',  formatDate(report.end_date)],
-    ['FY Year',              report.fy_year],
     ['Remarks',              report.remarks],
   ].filter(([, v]) => v);
 
@@ -114,10 +111,10 @@ const sendReportAssignmentEmail = async ({ report, reportId }) => {
   <tr>
     <td style="padding:28px 32px;">
       <p style="margin:0 0 20px;font-size:15px;color:#1E293B;">
-        Dear <strong>${report.accountable_person || 'Team Member'}</strong>,
+        Dear <strong>${department.name}</strong> Team,
       </p>
       <p style="margin:0 0 24px;font-size:14px;color:#475569;line-height:1.6;">
-        A new Hazard Observation Report has been raised and assigned to you for corrective action.
+        A new Hazard Observation Report has been raised and automatically assigned to your department for corrective action.
         Please review the details below and take the necessary steps promptly.
       </p>
 
@@ -161,12 +158,12 @@ const sendReportAssignmentEmail = async ({ report, reportId }) => {
 
   const info = await getTransporter().sendMail({
     from:    fromName,
-    to:      report.accountable_person_email,
-    subject: `[HOC] Action Required — ${report.severity} Severity Report #${reportId} Assigned to You`,
+    to:      department.email,
+    subject: `[HOC] Action Required — ${report.severity} Severity Report #${reportId} Assigned to ${department.name}`,
     html,
   });
 
-  console.log(`✅ Assignment email sent → ${report.accountable_person_email} (msgId: ${info.messageId})`);
+  console.log(`✅ Assignment email sent → ${department.email} (msgId: ${info.messageId})`);
 };
 
 module.exports = { sendReportAssignmentEmail };

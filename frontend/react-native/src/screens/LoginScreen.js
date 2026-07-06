@@ -1,12 +1,11 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet, View, Text, TextInput, TouchableOpacity,
   ActivityIndicator, Alert, Image, KeyboardAvoidingView,
   Platform, ScrollView, TouchableWithoutFeedback, Keyboard,
   Dimensions, PixelRatio,
 } from 'react-native';
-import { login } from '../services/authService';
-import { AuthContext } from '../../App';
+import { requestOTP } from '../services/authService';
 
 const { width: W, height: H } = Dimensions.get('window');
 const BASE_W = 375;
@@ -16,7 +15,6 @@ const wp = (p) => (W * p) / 100;
 const hp = (p) => (H * p) / 100;
 
 const LoginScreen = ({ navigation }) => {
-  const { signIn } = useContext(AuthContext);
   const [employeeId, setEmployeeId]   = useState('');
   const [password, setPassword]       = useState('');
   const [loading, setLoading]         = useState(false);
@@ -31,9 +29,12 @@ const LoginScreen = ({ navigation }) => {
     }
     setLoading(true);
     try {
-      const response = await login(normalizedEmployeeId, password);
+      const response = await requestOTP(normalizedEmployeeId, password);
       if (response.success && response.data) {
-        await signIn(response.data.token, response.data.user);
+        navigation.navigate('OTPVerification', {
+          userId: response.data.userId,
+          phone: response.data.phone,
+        });
       } else {
         Alert.alert('Error', response.message || 'Login failed');
       }

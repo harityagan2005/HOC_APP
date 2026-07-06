@@ -28,7 +28,6 @@ const getUserDashboard = async (req, res) => {
       const [stats] = await connection.query(
         `SELECT
           COUNT(*) as total_reports,
-          SUM(CASE WHEN severity = 'Critical' THEN 1 ELSE 0 END) as critical_count,
           SUM(CASE WHEN severity = 'High'     THEN 1 ELSE 0 END) as high_count,
           SUM(CASE WHEN severity = 'Medium'   THEN 1 ELSE 0 END) as medium_count,
           SUM(CASE WHEN severity = 'Low'      THEN 1 ELSE 0 END) as low_count,
@@ -61,7 +60,6 @@ const getAdminDashboard = async (req, res) => {
       const [stats] = await connection.query(
         `SELECT
           COUNT(*) as total_reports,
-          SUM(CASE WHEN severity = 'Critical' THEN 1 ELSE 0 END) as critical_count,
           SUM(CASE WHEN severity = 'High'     THEN 1 ELSE 0 END) as high_count,
           SUM(CASE WHEN severity = 'Medium'   THEN 1 ELSE 0 END) as medium_count,
           SUM(CASE WHEN severity = 'Low'      THEN 1 ELSE 0 END) as low_count,
@@ -74,8 +72,7 @@ const getAdminDashboard = async (req, res) => {
       // Top reporters
       const [topReporters] = await connection.query(
         `SELECT TOP 5 u.name, u.employee_id,
-          COUNT(h.job_id) as report_count,
-          SUM(CASE WHEN h.severity = 'Critical' THEN 1 ELSE 0 END) as critical_count
+          COUNT(h.job_id) as report_count
          FROM hoc_input h
          JOIN users u ON h.reported_by = u.id
          GROUP BY h.reported_by, u.name, u.employee_id
