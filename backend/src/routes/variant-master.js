@@ -71,7 +71,7 @@ router.post('/', authMiddleware, adminOnly, async (req, res) => {
 
     try {
       const [result] = await connection.query(
-        'INSERT INTO variant_master (variant_type, variant_name, variant_code, description) VALUES (?, ?, ?, ?)',
+        'INSERT INTO variant_master (variant_type, variant_name, variant_code, description) OUTPUT INSERTED.id VALUES (?, ?, ?, ?)',
         [variant_type, variant_name, variant_code || null, description || null]
       );
 

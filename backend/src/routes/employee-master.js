@@ -78,8 +78,8 @@ router.post('/', authMiddleware, adminOnly, async (req, res) => {
       const hashedPassword = await bcrypt.hash(password, 10);
 
       const [result] = await connection.query(
-        `INSERT INTO users (employee_id, name, email, phone, password, role, is_active) 
-         VALUES (?, ?, ?, ?, ?, ?, TRUE)`,
+        `INSERT INTO users (employee_id, name, email, phone, password, role, is_active)
+         OUTPUT INSERTED.id VALUES (?, ?, ?, ?, ?, ?, 1)`,
         [employee_id, name, email, phone, hashedPassword, role || 'User']
       );
 
@@ -115,6 +115,13 @@ router.put('/:id', authMiddleware, adminOnly, async (req, res) => {
         values.push(name);
       }
       if (email) {
+        const [existing] = await connection.query(
+          'SELECT id FROM users WHERE email = ? AND id != ?',
+          [email, id]
+        );
+        if (existing.length > 0) {
+          return sendError(res, 'Email is already taken by another employee', 409);
+        }
         updates.push('email = ?');
         values.push(email);
       }
@@ -158,6 +165,11 @@ router.put('/:id', authMiddleware, adminOnly, async (req, res) => {
 router.delete('/:id', authMiddleware, adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (parseInt(id) === req.user.id) {
+      return sendError(res, 'You cannot delete your own admin account', 400);
+    }
+
     const connection = await pool.getConnection();
 
     try {

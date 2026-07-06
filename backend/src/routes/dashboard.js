@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const dashboardController = require('../controllers/dashboardController');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, adminOnly } = require('../middleware/auth');
 
-// Protected routes - requires authentication
-router.get('/user', authMiddleware, dashboardController.getUserDashboard);
+router.get('/user',  authMiddleware,           dashboardController.getUserDashboard);
+router.get('/admin', authMiddleware, adminOnly, dashboardController.getAdminDashboard);
 
 module.exports = router;

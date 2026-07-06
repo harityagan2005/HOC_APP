@@ -3,15 +3,19 @@ const cors = require('cors');
 const morgan = require('morgan');
 const helmet = require('helmet');
 const dotenv = require('dotenv');
+const path = require('path');
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from backend/.env regardless of cwd
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
 // Initialize express app
 const app = express();
 
+// Serve uploaded images
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 // Middleware
-app.use(helmet()); // Security headers
+app.use(helmet({ crossOriginResourcePolicy: false })); // Security headers
 app.use(cors()); // Enable CORS
 app.use(morgan('combined')); // Logging
 app.use(express.json({ limit: '50mb' })); // Parse JSON
@@ -19,14 +23,18 @@ app.use(express.urlencoded({ limit: '50mb', extended: true })); // Parse URL-enc
 
 // Test database connection
 const pool = require('./config/database');
+let DB_CONNECTED = false;
 pool.getConnection()
   .then(conn => {
-    console.log('✅ MySQL Database connected successfully');
+    DB_CONNECTED = true;
+    console.log('✅ MSSQL Database connected successfully');
     conn.release();
   })
   .catch(err => {
+    DB_CONNECTED = false;
     console.error('❌ Database connection failed:', err.message);
-    process.exit(1);
+    console.error(err);
+    console.log('Continuing to run server; database is required for full functionality.');
   });
 
 // Routes
@@ -38,7 +46,7 @@ app.use('/api/employee-master', require('./routes/employee-master'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'OK', message: 'Server is running' });
+  res.status(200).json({ status: 'OK', message: 'Server is running', db: DB_CONNECTED ? 'connected' : 'disconnected' });
 });
 
 // Error handling middleware
@@ -58,9 +66,19 @@ app.use((req, res) => {
 
 // Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+const HOST = '0.0.0.0';
+const server = app.listen(PORT, HOST, () => {
+  console.log(`🚀 Server running on ${HOST}:${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV}`);
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${PORT} is already in use. Please stop the process using this port or set a different PORT in your backend .env file.`);
+  } else {
+    console.error('Server error:', err);
+  }
+  process.exit(1);
 });
 
 module.exports = app;
