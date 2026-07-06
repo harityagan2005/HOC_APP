@@ -8,6 +8,10 @@ const { validateEmployeeId, validatePassword } = require('../utils/validation');
 // Request OTP - Send SMS OTP for 2FA
 const requestOTP = async (req, res) => {
   try {
+    if (process.env.DISABLE_2FA === 'true') {
+      return login(req, res);
+    }
+
     const { employee_id, password } = req.body;
 
     // Validate input

@@ -1,11 +1,24 @@
 import axios from 'axios';
+import { NativeModules, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_BASE_URL = 'http://100.3.16.201:5000/api';
+const getApiBaseUrl = () => {
+  if (Platform.OS === 'web') {
+    return 'http://localhost:5000/api';
+  }
+
+  const scriptURL = NativeModules.SourceCode?.scriptURL;
+  const match = scriptURL?.match(/^[^:]+:\/\/([^:/]+)/);
+  const host = match?.[1] || '192.168.29.174';
+
+  return `http://${host}:5000/api`;
+};
+
+export const API_BASE_URL = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 15000,
 });
 
 api.interceptors.request.use(

@@ -25,14 +25,16 @@ const LoginScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
-    if (!employeeId || !password) {
+    const normalizedEmployeeId = employeeId.trim();
+
+    if (!normalizedEmployeeId || !password) {
       Alert.alert('Error', 'Please enter both Employee ID and Password');
       return;
     }
 
     setLoading(true);
     try {
-      const response = await login(employeeId, password);
+      const response = await login(normalizedEmployeeId, password);
       if (response.success && response.data) {
         await signIn(response.data.token, response.data.user);
         Alert.alert('Success', 'Logged in successfully!');
@@ -78,6 +80,8 @@ const LoginScreen = ({ navigation }) => {
               placeholderTextColor="#7d7e84"
               value={employeeId}
               onChangeText={setEmployeeId}
+              autoCapitalize="characters"
+              autoCorrect={false}
               editable={!loading}
             />
 
@@ -90,6 +94,8 @@ const LoginScreen = ({ navigation }) => {
                 secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={setPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
                 editable={!loading}
               />
               <TouchableOpacity
