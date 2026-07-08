@@ -187,7 +187,8 @@ INSERT INTO variant_master (variant_type, variant_name, variant_code, email, hod
 ('Category', 'Equipment Fault',    'EQF',   NULL, NULL),
 ('Department', 'Safety Department',      'DEPT-SAFETY', 'safety.dept@hocapp.com',      'Rajesh Kumar'),
 ('Department', 'Maintenance Department', 'DEPT-MAINT',  'maintenance.dept@hocapp.com', 'Suresh Iyer'),
-('Department', 'Operations Department',  'DEPT-OPS',    'operations.dept@hocapp.com',  'Priya Nair');
+('Department', 'Operations Department',  'DEPT-OPS',    'operations.dept@hocapp.com',  'Priya Nair'),
+('Department', 'Demo Department',        'DEPT-DEMO',   'bommakanti.dheeraj@bmu.edu.in', 'Dheeraj Bommakanti');
 GO
 
 /* Demo hazard observation reports so dashboards/lists have data to show */
@@ -254,4 +255,20 @@ SELECT 'Housekeeping Round', 'Reliance Industries', 'Admin User', '2026-06-28',
 FROM variant_master loc, variant_master area, variant_master stat, variant_master cat, variant_master dept, users u
 WHERE loc.variant_name = 'Floor 1' AND area.variant_name = 'Warehouse' AND stat.variant_name = 'Open'
   AND cat.variant_name = 'Safety Hazard' AND dept.variant_name = 'Safety Department' AND u.employee_id = 'EMP002';
+
+INSERT INTO hoc_input (
+    job_req_for, company, observer_name, observation_date,
+    location_id, area_id, status_id, category_id, action_department_id,
+    oper_act, observations, corrective_actions,
+    responsible_person, hod, stop_job, severity, reported_by
+)
+SELECT 'Demo SMTP Notification Report', 'Reliance Industries', 'Admin User', '2026-07-08',
+       loc.id, area.id, stat.id, cat.id, dept.id,
+       'Demo entry to exercise the automated department-email notification',
+       'Sample observation used to confirm report-assignment emails reach the Demo Department inbox.',
+       'No action needed — demo data.',
+       'Admin User', 'Dheeraj Bommakanti', 'No', 'Low', u.id
+FROM variant_master loc, variant_master area, variant_master stat, variant_master cat, variant_master dept, users u
+WHERE loc.variant_name = 'Floor 1' AND area.variant_name = 'Production' AND stat.variant_name = 'Open'
+  AND cat.variant_name = 'Safety Hazard' AND dept.variant_name = 'Demo Department' AND u.employee_id = 'EMP001';
 GO

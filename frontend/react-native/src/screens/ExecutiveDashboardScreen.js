@@ -92,7 +92,7 @@ const ExecutiveDashboardScreen = ({ navigation }) => {
         >
           {/* Banner */}
           <View style={s.banner}>
-            <Text style={s.bannerTitle}>KG-D6 HSE Overview</Text>
+            <Text style={s.bannerTitle}>KGD6 HSE Overview</Text>
             <Text style={s.bannerSub}>All hazard observations across Reliance Industries</Text>
             <View style={s.bannerStats}>
               <View style={s.bannerStat}>

@@ -90,13 +90,13 @@ android {
     }
 
     buildToolsVersion rootProject.ext.buildToolsVersion
-    compileSdk 35
+    compileSdk rootProject.ext.compileSdkVersion
 
     namespace 'com.hocmobile.app'
     defaultConfig {
         applicationId 'com.hocmobile.app'
         minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion 34
+        targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0.0"
 

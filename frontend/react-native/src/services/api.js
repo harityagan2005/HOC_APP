@@ -24,7 +24,7 @@ const getApiBaseUrl = () => {
     host = match?.[1];
   }
 
-  host = host || '192.168.29.174';
+  host = host || '10.122.25.124';
 
   return `http://${host}:5000/api`;
 };

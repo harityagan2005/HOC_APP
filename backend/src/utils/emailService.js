@@ -137,7 +137,7 @@ const sendReportAssignmentEmail = async ({ report, reportId, department }) => {
       <p style="margin:0;font-size:13px;color:#64748B;">
         Regards,<br>
         <strong style="color:#0D2B6E;">HOC Safety Team</strong><br>
-        <span style="color:#94A3B8;">Reliance Industries · KG-D6</span>
+        <span style="color:#94A3B8;">Reliance Industries · KGD6</span>
       </p>
     </td>
   </tr>

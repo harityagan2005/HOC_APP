@@ -524,7 +524,7 @@ const DashboardScreen = ({ navigation }) => {
 
               <View style={s.sbFooter}>
                 <Text style={s.sbFooterText}>HOC App v1.0</Text>
-                <Text style={s.sbFooterSub}>Reliance Industries • KG-D6</Text>
+                <Text style={s.sbFooterSub}>Reliance Industries • KGD6</Text>
               </View>
 
             </TouchableOpacity>

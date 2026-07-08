@@ -67,7 +67,7 @@ const LoginScreen = ({ navigation }) => {
                 resizeMode="contain"
               />
             </View>
-            <Text style={s.title}>KG-D6</Text>
+            <Text style={s.title}>KGD6</Text>
             <Text style={s.subtitle}>Reliance Industries</Text>
           </View>
 

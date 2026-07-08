@@ -96,7 +96,7 @@ const AdminProfileScreen = ({ navigation }) => {
           <InfoRow label="App Name"    value="HOC Safety App" />
           <InfoRow label="Version"     value="1.0.0" />
           <InfoRow label="System"      value="Hazard Observation Card" />
-          <InfoRow label="Site"        value="KG-D6 • Reliance Industries" />
+          <InfoRow label="Site"        value="KGD6 • Reliance Industries" />
         </View>
 
         {/* Logout */}
